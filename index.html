@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kamp Oyun - 2D Mobil Prototip</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <header class="hud">
+      <div class="hud-item">Odun: <span id="woodCount">0</span></div>
+      <div class="hud-item">Ateş: <span id="fireLevel">100</span>%</div>
+      <div class="hud-item">Skor: <span id="score">0</span></div>
+    </header>
+
+    <div id="mainMenu">
+      <h2 class="menu-subtitle">SURVIVE THE NIGHT</h2>
+      <div class="menu-buttons">
+          <button id="startBtn" class="menu-btn primary">START GAME</button>
+          <button id="scoresBtn" class="menu-btn secondary">SCORES</button>
+        </div>
+    </div>
+
+    <div id="scoreBoard" class="hidden">
+        <h2>BEST SURVIVORS</h2>
+        <div id="highScoreList"></div>
+        <button id="backBtn" class="menu-btn secondary">BACK</button>
+    </div>
+
+    <div id="gameOverUI" class="hidden">
+        <h2>GAME OVER</h2>
+        <div id="finalScoreText">Score: 0 <br> Day: 1</div>
+        <div class="menu-buttons">
+            <button id="menuReturnBtn" class="menu-btn primary">MAIN MENU</button>
+        </div>
+    </div>
+
+    <div id="pauseUI" class="hidden">
+        <div class="pause-box">
+            <h2>PAUSED</h2>
+            <p>Are you sure you want to quit?<br><small style="color: #bbb;">(Your progress will be lost)</small></p>
+            <div class="menu-buttons pause-btns">
+                <button id="resumeBtn" class="menu-btn primary">RESUME</button>
+                <button id="quitBtn" class="menu-btn secondary">MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" aria-label="Kamp oyunu"></canvas>
+
+    <div id="joystickZone">
+        <div id="joystickBase" class="hidden">
+            <div id="joystickStick"></div>
+        </div>
+    </div>
+    <button id="mobileActionBtn">FEED FIRE</button>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
