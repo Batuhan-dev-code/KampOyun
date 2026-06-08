@@ -94,10 +94,30 @@ const SVG_MOON = '<svg class="time-icon moon-icon" viewBox="0 0 100 100"><path d
 const topRow = document.createElement("div"); topRow.className = "hud-row";
 const bottomRow = document.createElement("div"); bottomRow.className = "hud-row";
 
+// OYUN MOTORU DEĞİŞKENLERİ
+const state = {
+  status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
+  pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
+  fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
+  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
+  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
+  
+  // YENİ EKONOMİ SİSTEMİ DEĞİŞKENLERİ
+  maxWood: 5, // Kapasite 5'e düşürüldü
+  sessionGoldenWood: 0, // Bu tur toplanan altın odun
+  
+  bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0
+};
+
+// Dinamik Odun İkonu Oluşturma (Artık state.maxWood kadar çizecek)
+function renderWoodIcons() {
+    let html = '<span class="wood-label">Wood</span>';
+    for(let i=0; i<state.maxWood; i++) html += SVG_WOOD;
+    return html;
+}
+
 const woodWrap = document.createElement("div"); woodWrap.className = "wood-container"; woodWrap.id = "woodIconsWrapper";
-let woodHTML = '<span class="wood-label">Wood</span>';
-for(let i=0; i<10; i++) woodHTML += SVG_WOOD;
-woodWrap.innerHTML = woodHTML; topRow.appendChild(woodWrap);
+woodWrap.innerHTML = renderWoodIcons(); topRow.appendChild(woodWrap);
 
 const timeWrap = document.createElement("div"); timeWrap.className = "time-container"; timeWrap.innerHTML = SVG_SUN + SVG_MOON; topRow.appendChild(timeWrap);
 const pauseBtnWrap = document.createElement("div"); pauseBtnWrap.className = "pause-btn"; pauseBtnWrap.innerHTML = "⏸"; pauseBtnWrap.id = "hudPauseBtn"; topRow.appendChild(pauseBtnWrap);
@@ -116,7 +136,7 @@ bottomRow.appendChild(scoreWrap);
 
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
 
-// --- OYUN MOTORU DEĞİŞKENLERİ ---
+// --- GÖRSELLER ---
 const walkIdleSprite = new Image(); walkIdleSprite.src = "assets/walk and idle.png";
 const dieSprite = new Image(); dieSprite.src = "assets/attack and die.png";
 const fireSprite = new Image(); fireSprite.src = "assets/yeni_ates.png";
@@ -129,15 +149,6 @@ const fireAnim = { frameWidth: 64, frameHeight: 64, cols: 10, rows: 6, frameCoun
 fireSprite.onload = () => { const fullW = fireSprite.width || 0; const fullH = fireSprite.height || 0; if (fullW > 0 && fullH > 0) { fireAnim.frameWidth = fullW / fireAnim.cols; fireAnim.frameHeight = fullH / fireAnim.rows; fireAnim.frameCount = fireAnim.cols * fireAnim.rows; } };
 
 const controls = { up: false, down: false, left: false, right: false };
-
-const state = {
-  status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
-  pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
-  fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
-  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
-  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
-  bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0
-};
 
 const anim = { walkFrame: 0, walkTimer: 0, deathFrame: 0, deathTimer: 0 };
 const deathClip = { row: 0, startCol: 0, frameCount: 1 };
@@ -153,7 +164,13 @@ function generateTrees() { state.trees = []; const w = canvas.clientWidth || 800
 function resizeCanvas() { const ratio = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect(); canvas.width = Math.floor(rect.width * ratio); canvas.height = Math.floor(rect.height * ratio); ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.imageSmoothingEnabled = false; state.fire.x = rect.width * 0.5; state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85; if (state.trees.length === 0) generateTrees(); }
 function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y); return isNaN(d) ? 9999 : d; }
 
-function randomWood() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const isGold = Math.random() < 0.20; for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30) return wood; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; }
+function randomWood() { 
+  const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; 
+  const isGold = Math.random() < 0.15; // YENİ: İhtimal %15'e düştü
+  for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30) return wood; } 
+  return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; 
+}
+
 function randomMushroom() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; for (let i = 0; i < 20; i += 1) { const mushroom = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; if (dist(mushroom, state.fire) > state.fire.r + 80 && dist(mushroom, state.player) > state.player.r + 30) return mushroom; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; }
 function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); }
 
@@ -174,7 +191,17 @@ function collectItems() {
   let wCollected = 0; let goldenCollected = 0;
   state.woods = state.woods.filter((wood) => { if (dist(state.player, wood) <= state.player.r + wood.r) { if (wood.isGolden) goldenCollected++; else wCollected++; playSound(sounds.wood); return false; } return true; });
   let totalWood = wCollected + (goldenCollected * 5);
-  if (totalWood > 0) { const spaceLeft = 10 - state.bagWood; const actualCollected = Math.min(totalWood, spaceLeft); state.bagWood += actualCollected; state.score += (wCollected * 5) + (goldenCollected * 50); state.pendingWoodRespawns += (wCollected + goldenCollected); if (goldenCollected > 0) { state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" }); } }
+  if (totalWood > 0) { 
+      const spaceLeft = state.maxWood - state.bagWood; // YENİ: maxWood referans alındı
+      const actualCollected = Math.min(totalWood, spaceLeft); 
+      state.bagWood += actualCollected; 
+      state.score += (wCollected * 5) + (goldenCollected * 50); 
+      state.pendingWoodRespawns += (wCollected + goldenCollected); 
+      if (goldenCollected > 0) { 
+          state.sessionGoldenWood += goldenCollected; // YENİ: Altın odun bankaya işlenmek üzere belleğe alındı
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" }); 
+      } 
+  }
   let mCollected = 0;
   state.mushrooms = state.mushrooms.filter((m) => { if (dist(state.player, m) <= state.player.r + m.r) { mCollected += 1; state.health = Math.min(100, state.health + 25); playSound(sounds.wood); state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+25", life: 1.5, color: "#4ade80" }); return false; } return true; });
   state.pendingMushroomRespawns += mCollected;
@@ -209,7 +236,7 @@ function updatePet(dt) {
   } else {
     state.pet.isSleeping = false;
     if (!state.pet.isFetching && !state.pet.hasWood) { state.pet.fetchTimer -= dt; if (state.pet.fetchTimer <= 0) { state.pet.isFetching = true; state.pet.targetX = 50 + Math.random() * ((canvas.clientWidth || 800) - 100); state.pet.targetY = 50 + Math.random() * ((canvas.clientHeight || 600) - 100); } }
-    if (state.pet.isFetching && !state.pet.hasWood) { state.pet.isSitting = false; if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false; } } else if (state.pet.hasWood) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false; if (dToPlayer < 40) { if (state.bagWood < 10) { state.bagWood++; state.score += 5; playSound(sounds.wood); state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false; state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false; } else if (dToPlayer < 40) { state.pet.isSitting = true; } }
+    if (state.pet.isFetching && !state.pet.hasWood) { state.pet.isSitting = false; if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false; } } else if (state.pet.hasWood) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false; if (dToPlayer < 40) { if (state.bagWood < state.maxWood) { state.bagWood++; state.score += 5; playSound(sounds.wood); state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false; state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false; } else if (dToPlayer < 40) { state.pet.isSitting = true; } }
   }
   if (!state.pet.isSitting) { let dx = state.pet.targetX - state.pet.x; let dy = state.pet.targetY - state.pet.y; let angle = Math.atan2(dy, dx) || 0; state.pet.angle = angle; let moveDist = state.pet.speed * dt; if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) > moveDist) { state.pet.x += (Math.cos(angle) * moveDist) || 0; state.pet.y += (Math.sin(angle) * moveDist) || 0; } }
 }
@@ -316,8 +343,26 @@ function update(dt) {
       state.gameOver = true; state.deathAnimDone = false; anim.deathFrame = 0; anim.deathTimer = 0;
       controls.up = controls.down = controls.left = controls.right = false; stopAudio();
       if (dieSprite.complete) configureDeathClip();
-      try { if (state.score > (localStorage.getItem("campfireHighScore") || 0)) localStorage.setItem("campfireHighScore", Math.floor(state.score)); if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStorage.setItem("campfireHighDay", state.currentDay); } catch(e) {}
-      setTimeout(() => { const goUI = document.getElementById("gameOverUI"); if(goUI) { document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay}`; goUI.classList.remove("hidden"); } }, 1500); 
+      
+      // YENİ: Altın Odun Bankaya Kaydediliyor
+      let currentBank = 0;
+      try { 
+          if (state.score > (localStorage.getItem("campfireHighScore") || 0)) localStorage.setItem("campfireHighScore", Math.floor(state.score)); 
+          if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStorage.setItem("campfireHighDay", state.currentDay); 
+          
+          currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
+          currentBank += state.sessionGoldenWood;
+          localStorage.setItem("campfireGoldenWood", currentBank);
+      } catch(e) {}
+      
+      setTimeout(() => { 
+          const goUI = document.getElementById("gameOverUI"); 
+          if(goUI) { 
+              // YENİ: Kazanılan altın odunları oyuncuya gösteriyoruz
+              document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay} <br><br> <span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${state.sessionGoldenWood} Golden Wood Earned!</span>`; 
+              goUI.classList.remove("hidden"); 
+          } 
+      }, 1500); 
     }
   }
 
@@ -468,7 +513,18 @@ function draw() {
 }
 
 function resetGame() {
-    state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false; state.score = 0; state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0; stopAudio(); 
+    state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false; state.score = 0; state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0; 
+    
+    // YENİ: Altın odun sayacını tur başı sıfırla, ama maxWood kapasitesini koru
+    state.sessionGoldenWood = 0;
+    
+    // YENİ: Oyuncu çanta kapasitesini ekranda dinamik güncelle
+    const wWrap = document.getElementById("woodIconsWrapper");
+    if (wWrap) {
+        wWrap.innerHTML = renderWoodIcons();
+    }
+    
+    stopAudio(); 
     if(document.getElementById("hudPauseBtn")) { document.getElementById("hudPauseBtn").innerHTML = "⏸"; }
     const rect = canvas.getBoundingClientRect(); state.fire.x = rect.width * 0.5; state.fire.y = rect.height * 0.5 + 40; state.fire.level = 100; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85; state.player.x = state.fire.x - 50; state.player.y = state.fire.y; state.player.dir = "down";
     state.pet.x = state.player.x + 20; state.pet.y = state.player.y + 20; state.pet.hasWood = false; state.pet.isFetching = false; state.pet.isSitting = true; state.pet.isSleeping = false;
@@ -485,7 +541,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
 }
 
-// --- YENİ EKLENEN: YÜZEN JOYSTICK & AKSİYON BUTONU KONTROLLERİ ---
+// --- YÜZEN JOYSTICK & AKSİYON BUTONU KONTROLLERİ ---
 const joystickZone = document.getElementById("joystickZone");
 const joystickBase = document.getElementById("joystickBase");
 const joystickStick = document.getElementById("joystickStick");
@@ -563,7 +619,7 @@ if(mobileActionBtn) {
     mobileActionBtn.addEventListener("contextmenu", e => e.preventDefault());
 }
 
-// KLAVYE DESTEĞİNİ KORUYORUZ (PC TESTLERİ İÇİN)
+// KLAVYE DESTEĞİ
 function bindKeyboard() {
   window.addEventListener("keydown", (e) => {
     initAudio(); if (state.gameOver || state.status !== "PLAYING") return; const k = e.key.toLowerCase();
