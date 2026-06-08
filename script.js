@@ -83,7 +83,7 @@ style.innerHTML = `
   .wood-icon.active { opacity: 1; fill: #a0522d; }
   .time-container { position: relative; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; }
   .time-icon { position: absolute; width: 24px; height: 24px; transition: opacity 0.5s; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)); }
-  .score-text { font-size: 12px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 10px; text-align: center;}
+  .score-text { font-size: 12px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 10px; text-align: center; line-height: 1.4;}
 `;
 document.head.appendChild(style);
 
@@ -102,14 +102,12 @@ const state = {
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
-  // YENİ EKONOMİ SİSTEMİ DEĞİŞKENLERİ
-  maxWood: 5, // Kapasite 5'e düşürüldü
-  sessionGoldenWood: 0, // Bu tur toplanan altın odun
+  maxWood: 5, 
+  sessionGoldenWood: 0, 
   
   bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0
 };
 
-// Dinamik Odun İkonu Oluşturma (Artık state.maxWood kadar çizecek)
 function renderWoodIcons() {
     let html = '<span class="wood-label">Wood</span>';
     for(let i=0; i<state.maxWood; i++) html += SVG_WOOD;
@@ -131,12 +129,13 @@ bottomRow.appendChild(barsGroup);
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text";
 let currentHigh = 0; let currentHighDay = 1;
 try { currentHigh = localStorage.getItem("campfireHighScore") || 0; currentHighDay = localStorage.getItem("campfireHighDay") || 1; } catch(e) {}
-scoreWrap.innerHTML = `Score: <span id="scoreText">0</span> | Day: <span id="dayText">1</span><br><span style="font-size:10px; color:#ffd700;">Best Score: <span id="highScoreText">${currentHigh}</span> | Best Day: <span id="highDayText">${currentHighDay}</span></span>`;
+
+// YENİ EKLENEN: OYUN İÇİ ALTIN ODUN GÖSTERGESİ
+scoreWrap.innerHTML = `Score: <span id="scoreText">0</span> | Day: <span id="dayText">1</span> | <span style="color:#ffd700;">Gold: <span id="goldenWoodText">0</span></span><br><span style="font-size:10px; color:#ffd700;">Best Score: <span id="highScoreText">${currentHigh}</span> | Best Day: <span id="highDayText">${currentHighDay}</span></span>`;
 bottomRow.appendChild(scoreWrap);
 
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
 
-// --- GÖRSELLER ---
 const walkIdleSprite = new Image(); walkIdleSprite.src = "assets/walk and idle.png";
 const dieSprite = new Image(); dieSprite.src = "assets/attack and die.png";
 const fireSprite = new Image(); fireSprite.src = "assets/yeni_ates.png";
@@ -166,7 +165,7 @@ function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y); return isNaN(d) 
 
 function randomWood() { 
   const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; 
-  const isGold = Math.random() < 0.15; // YENİ: İhtimal %15'e düştü
+  const isGold = Math.random() < 0.15; 
   for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30) return wood; } 
   return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; 
 }
@@ -183,6 +182,10 @@ function updateHud() {
   const sIcon = document.querySelector(".sun-icon"); const mIcon = document.querySelector(".moon-icon"); if (sIcon && mIcon) { sIcon.style.opacity = isNight() ? 0 : 1; mIcon.style.opacity = isNight() ? 1 : 0; }
   const scoreEl = document.getElementById("scoreText"); if (scoreEl) scoreEl.textContent = String(state.score | 0);
   const dayEl = document.getElementById("dayText"); if (dayEl) dayEl.textContent = state.currentDay;
+  
+  // YENİ EKLENEN: Oyun içi HUD sayacını güncelleme
+  const goldEl = document.getElementById("goldenWoodText");
+  if (goldEl) goldEl.textContent = state.sessionGoldenWood;
 }
 
 function clampPlayer() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const half = getPlayerDrawSize() * 0.5; state.player.x = Math.min(w - half, Math.max(half, state.player.x || half)); state.player.y = Math.min(h - half, Math.max(half, state.player.y || half)); }
@@ -192,13 +195,13 @@ function collectItems() {
   state.woods = state.woods.filter((wood) => { if (dist(state.player, wood) <= state.player.r + wood.r) { if (wood.isGolden) goldenCollected++; else wCollected++; playSound(sounds.wood); return false; } return true; });
   let totalWood = wCollected + (goldenCollected * 5);
   if (totalWood > 0) { 
-      const spaceLeft = state.maxWood - state.bagWood; // YENİ: maxWood referans alındı
+      const spaceLeft = state.maxWood - state.bagWood; 
       const actualCollected = Math.min(totalWood, spaceLeft); 
       state.bagWood += actualCollected; 
       state.score += (wCollected * 5) + (goldenCollected * 50); 
       state.pendingWoodRespawns += (wCollected + goldenCollected); 
       if (goldenCollected > 0) { 
-          state.sessionGoldenWood += goldenCollected; // YENİ: Altın odun bankaya işlenmek üzere belleğe alındı
+          state.sessionGoldenWood += goldenCollected; 
           state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" }); 
       } 
   }
@@ -344,7 +347,6 @@ function update(dt) {
       controls.up = controls.down = controls.left = controls.right = false; stopAudio();
       if (dieSprite.complete) configureDeathClip();
       
-      // YENİ: Altın Odun Bankaya Kaydediliyor
       let currentBank = 0;
       try { 
           if (state.score > (localStorage.getItem("campfireHighScore") || 0)) localStorage.setItem("campfireHighScore", Math.floor(state.score)); 
@@ -358,7 +360,6 @@ function update(dt) {
       setTimeout(() => { 
           const goUI = document.getElementById("gameOverUI"); 
           if(goUI) { 
-              // YENİ: Kazanılan altın odunları oyuncuya gösteriyoruz
               document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay} <br><br> <span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${state.sessionGoldenWood} Golden Wood Earned!</span>`; 
               goUI.classList.remove("hidden"); 
           } 
@@ -514,15 +515,10 @@ function draw() {
 
 function resetGame() {
     state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false; state.score = 0; state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0; 
-    
-    // YENİ: Altın odun sayacını tur başı sıfırla, ama maxWood kapasitesini koru
     state.sessionGoldenWood = 0;
     
-    // YENİ: Oyuncu çanta kapasitesini ekranda dinamik güncelle
     const wWrap = document.getElementById("woodIconsWrapper");
-    if (wWrap) {
-        wWrap.innerHTML = renderWoodIcons();
-    }
+    if (wWrap) { wWrap.innerHTML = renderWoodIcons(); }
     
     stopAudio(); 
     if(document.getElementById("hudPauseBtn")) { document.getElementById("hudPauseBtn").innerHTML = "⏸"; }
@@ -641,7 +637,18 @@ function resumeGame() { state.status = "PLAYING"; const pUI = document.getElemen
 function quitToMenu() { const pUI = document.getElementById("pauseUI"); if (pUI) pUI.classList.add("hidden"); resetGame(); document.getElementById("mainMenu").classList.remove("hidden"); }
 
 document.getElementById("startBtn").addEventListener("click", () => { initAudio(); state.status = "PLAYING"; document.getElementById("mainMenu").classList.add("hidden"); });
-document.getElementById("scoresBtn").addEventListener("click", () => { const high = localStorage.getItem("campfireHighScore") || 0; const day = localStorage.getItem("campfireHighDay") || 1; document.getElementById("highScoreList").innerHTML = `<p>Score: ${high} <br> Day: ${day}</p>`; document.getElementById("mainMenu").classList.add("hidden"); document.getElementById("scoreBoard").classList.remove("hidden"); });
+
+// YENİ EKLENEN: SKORLAR MENÜSÜNDE BANKADAKİ TOPLAM ALTIN ODUNLARI GÖSTERME
+document.getElementById("scoresBtn").addEventListener("click", () => { 
+    const high = localStorage.getItem("campfireHighScore") || 0; 
+    const day = localStorage.getItem("campfireHighDay") || 1; 
+    const bank = localStorage.getItem("campfireGoldenWood") || 0;
+    
+    document.getElementById("highScoreList").innerHTML = `<p>Score: ${high} <br> Day: ${day} <br><br> <span style="color:#ffd700; text-shadow: 0 0 5px rgba(255,215,0,0.5);">Total Golden Wood: ${bank}</span></p>`; 
+    document.getElementById("mainMenu").classList.add("hidden"); 
+    document.getElementById("scoreBoard").classList.remove("hidden"); 
+});
+
 document.getElementById("backBtn").addEventListener("click", () => { document.getElementById("scoreBoard").classList.add("hidden"); document.getElementById("mainMenu").classList.remove("hidden"); });
 
 const menuReturnBtn = document.getElementById("menuReturnBtn"); if(menuReturnBtn) { menuReturnBtn.addEventListener("click", () => { document.getElementById("gameOverUI").classList.add("hidden"); resetGame(); document.getElementById("mainMenu").classList.remove("hidden"); }); }
