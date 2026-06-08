@@ -67,6 +67,7 @@ hudEl.style.justifyContent = "center"; hudEl.style.alignItems = "center";
 hudEl.style.gap = "8px"; hudEl.style.padding = "10px";
 hudEl.style.width = "100%"; hudEl.style.boxSizing = "border-box";
 
+// YENİ: .score-text sadeleştirildi
 const style = document.createElement('style');
 style.innerHTML = `
   .hud-row { display: flex; justify-content: center; align-items: center; gap: 15px; width: 100%; }
@@ -83,7 +84,7 @@ style.innerHTML = `
   .wood-icon.active { opacity: 1; fill: #a0522d; }
   .time-container { position: relative; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; }
   .time-icon { position: absolute; width: 24px; height: 24px; transition: opacity 0.5s; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)); }
-  .score-text { font-size: 12px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 10px; text-align: center; line-height: 1.4;}
+  .score-text { font-size: 13px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 6px; text-align: center; line-height: 1.4; }
 `;
 document.head.appendChild(style);
 
@@ -126,12 +127,9 @@ const energyWrap = document.createElement("div"); energyWrap.className = "bar-wr
 const healthWrap = document.createElement("div"); healthWrap.className = "bar-wrapper"; healthWrap.innerHTML = 'Health <div class="bar-container"><div id="healthBar" class="bar-fill health-fill" style="width: 100%;"></div></div>'; barsGroup.appendChild(healthWrap);
 bottomRow.appendChild(barsGroup);
 
+// YENİ: Skorbordu tertemiz ve minimalist yaptık!
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text";
-let currentHigh = 0; let currentHighDay = 1;
-try { currentHigh = localStorage.getItem("campfireHighScore") || 0; currentHighDay = localStorage.getItem("campfireHighDay") || 1; } catch(e) {}
-
-// YENİ EKLENEN: OYUN İÇİ ALTIN ODUN GÖSTERGESİ
-scoreWrap.innerHTML = `Score: <span id="scoreText">0</span> | Day: <span id="dayText">1</span> | <span style="color:#ffd700;">Gold: <span id="goldenWoodText">0</span></span><br><span style="font-size:10px; color:#ffd700;">Best Score: <span id="highScoreText">${currentHigh}</span> | Best Day: <span id="highDayText">${currentHighDay}</span></span>`;
+scoreWrap.innerHTML = `Day <span id="dayText">1</span> | Score: <span id="scoreText">0</span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`;
 bottomRow.appendChild(scoreWrap);
 
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
@@ -174,18 +172,17 @@ function randomMushroom() { const w = canvas.clientWidth || 800; const h = canva
 function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); }
 
 function isNight() { return (state.dayNightTimer % CYCLE_SECONDS) >= DAY_SECONDS; }
+
 function updateHud() {
   const fireBar = document.getElementById("fireBar"); if (fireBar) fireBar.style.width = Math.max(0, state.fire.level) + "%";
   const hBar = document.getElementById("healthBar"); if (hBar) hBar.style.width = Math.max(0, state.health) + "%";
   const eBar = document.getElementById("energyBar"); if (eBar) eBar.style.width = Math.max(0, state.energy) + "%";
   const wWrap = document.getElementById("woodIconsWrapper"); if (wWrap) { const icons = wWrap.querySelectorAll(".wood-icon"); icons.forEach((icon, index) => { if (index < state.bagWood) icon.classList.add("active"); else icon.classList.remove("active"); }); }
   const sIcon = document.querySelector(".sun-icon"); const mIcon = document.querySelector(".moon-icon"); if (sIcon && mIcon) { sIcon.style.opacity = isNight() ? 0 : 1; mIcon.style.opacity = isNight() ? 1 : 0; }
-  const scoreEl = document.getElementById("scoreText"); if (scoreEl) scoreEl.textContent = String(state.score | 0);
-  const dayEl = document.getElementById("dayText"); if (dayEl) dayEl.textContent = state.currentDay;
   
-  // YENİ EKLENEN: Oyun içi HUD sayacını güncelleme
-  const goldEl = document.getElementById("goldenWoodText");
-  if (goldEl) goldEl.textContent = state.sessionGoldenWood;
+  const scoreEl = document.getElementById("scoreText"); if (scoreEl) scoreEl.textContent = String(Math.floor(state.score));
+  const dayEl = document.getElementById("dayText"); if (dayEl) dayEl.textContent = state.currentDay;
+  const goldEl = document.getElementById("goldenWoodText"); if (goldEl) goldEl.textContent = state.sessionGoldenWood;
 }
 
 function clampPlayer() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const half = getPlayerDrawSize() * 0.5; state.player.x = Math.min(w - half, Math.max(half, state.player.x || half)); state.player.y = Math.min(h - half, Math.max(half, state.player.y || half)); }
@@ -554,7 +551,6 @@ function handlePointerDown(e) {
     const rect = joystickZone.getBoundingClientRect();
     joyBaseX = e.clientX - rect.left;
     joyBaseY = e.clientY - rect.top;
-    
     joystickBase.style.left = joyBaseX + "px";
     joystickBase.style.top = joyBaseY + "px";
     joystickBase.classList.remove("hidden");
@@ -573,7 +569,6 @@ function handlePointerMove(e) {
     let dx = currentX - joyBaseX;
     let dy = currentY - joyBaseY;
     let distance = Math.hypot(dx, dy);
-    
     if (distance > maxJoyRadius) {
         dx = (dx / distance) * maxJoyRadius;
         dy = (dy / distance) * maxJoyRadius;
@@ -638,15 +633,26 @@ function quitToMenu() { const pUI = document.getElementById("pauseUI"); if (pUI)
 
 document.getElementById("startBtn").addEventListener("click", () => { initAudio(); state.status = "PLAYING"; document.getElementById("mainMenu").classList.add("hidden"); });
 
-// YENİ EKLENEN: SKORLAR MENÜSÜNDE BANKADAKİ TOPLAM ALTIN ODUNLARI GÖSTERME
+// YENİ EKLENEN: SKORLAR MENÜSÜ KARİYER İSTATİSTİKLERİNE DÖNÜŞTÜ
 document.getElementById("scoresBtn").addEventListener("click", () => { 
     const high = localStorage.getItem("campfireHighScore") || 0; 
     const day = localStorage.getItem("campfireHighDay") || 1; 
     const bank = localStorage.getItem("campfireGoldenWood") || 0;
     
-    document.getElementById("highScoreList").innerHTML = `<p>Score: ${high} <br> Day: ${day} <br><br> <span style="color:#ffd700; text-shadow: 0 0 5px rgba(255,215,0,0.5);">Total Golden Wood: ${bank}</span></p>`; 
+    document.getElementById("highScoreList").innerHTML = `
+        <div style="text-align: left;">
+            <p>🔥 Best Score: <span style="color:#ffd700;">${high}</span></p>
+            <p>📅 Max Days: <span style="color:#ffd700;">${day}</span></p>
+            <hr style="border:0; border-top:1px solid #555; margin: 15px 0;">
+            <p>💰 Total Golden Wood: <span style="color:#ffd700;">${bank}</span></p>
+        </div>
+    `; 
     document.getElementById("mainMenu").classList.add("hidden"); 
     document.getElementById("scoreBoard").classList.remove("hidden"); 
+    
+    // Başlığı Career Stats olarak güncelle (Arayüzde daha şık durması için)
+    const scoreH2 = document.querySelector("#scoreBoard h2");
+    if(scoreH2) scoreH2.textContent = "CAREER STATS";
 });
 
 document.getElementById("backBtn").addEventListener("click", () => { document.getElementById("scoreBoard").classList.add("hidden"); document.getElementById("mainMenu").classList.remove("hidden"); });

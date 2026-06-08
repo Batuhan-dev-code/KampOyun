@@ -38,11 +38,10 @@ html, body {
 }
 
 /* =========================================
-   YENİ EKLENEN: YÜZEN JOYSTICK & BUTON
+   YÜZEN JOYSTICK & BUTON
    ========================================= */
 #joystickZone {
-    position: absolute;
-    top: 0; left: 0; width: 50%; height: 100%;
+    position: absolute; top: 0; left: 0; width: 50%; height: 100%;
     z-index: 40; touch-action: none;
 }
 
@@ -74,12 +73,12 @@ html, body {
 #mobileActionBtn:active { transform: scale(0.92); background: linear-gradient(180deg, #a56828, #7a4315); }
 
 /* =========================================
-   MENÜ TASARIMLARI (Değişmedi)
+   MENÜ TASARIMLARI
    ========================================= */
 #mainMenu {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-    background-color: #050a10 !important; 
+    background-color: #050a10 !important;
     background-image: linear-gradient(to bottom, transparent 65%, #050a10 85%, #050a10 100%), url('assets/menu-bg.jpg') !important;
     background-position: center top !important; background-repeat: no-repeat !important;
     background-size: cover !important; z-index: 100; transition: opacity 0.4s ease-out;
@@ -98,11 +97,15 @@ html, body {
 #scoreBoard h2 { font-size: clamp(32px, 6vw, 48px); color: #ffd700; text-shadow: 0 0 10px rgba(255, 165, 0, 0.5); margin-bottom: 30px; }
 #gameOverUI h2 { font-size: clamp(40px, 8vw, 60px); color: #e53935; text-shadow: 0 0 15px rgba(229, 57, 53, 0.6); margin-bottom: 20px; letter-spacing: 3px; font-family: "Trebuchet MS", "Verdana", sans-serif; text-align: center; }
 
-#highScoreList, #finalScoreText {
-    font-size: 24px; color: #fff; margin-bottom: 40px; text-align: center; line-height: 1.6;
-    background: rgba(0,0,0,0.5); padding: 20px 40px; border-radius: 12px; border: 1px solid rgba(255, 215, 0, 0.3);
+/* YENİ: Skor/Kariyer Ekranı Güncellemeleri */
+#highScoreList {
+    font-size: 20px; color: #fff; margin-bottom: 40px; text-align: left; line-height: 1.6;
+    background: rgba(20, 30, 20, 0.8); padding: 20px 40px; border-radius: 12px; border: 1px solid #ffd700;
 }
-#finalScoreText { font-size: 22px; border: 1px solid rgba(229, 57, 53, 0.3); padding: 15px 30px; }
+#finalScoreText {
+    font-size: 22px; color: #fff; margin-bottom: 40px; text-align: center; line-height: 1.6;
+    background: rgba(0,0,0,0.5); padding: 15px 30px; border-radius: 12px; border: 1px solid rgba(229, 57, 53, 0.3);
+}
 
 .menu-buttons { display: flex; flex-direction: column; gap: 1vh; width: 80%; max-width: 200px; z-index: 2; margin-top: 37vh; }
 .menu-btn {
