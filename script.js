@@ -134,7 +134,7 @@ function updateMaxWoodCapacity() {
         state.maxWood = UPGRADE_DATA.backpack[currentBackpackTier - 1].capacity;
     }
 }
-updateMaxWoodCapacity(); // İlk açılışta kapasiteyi hesapla
+updateMaxWoodCapacity();
 
 
 function renderWoodIcons() {
@@ -454,7 +454,7 @@ state.player.y = state.tent.y + Math.sin(angle) * (state.player.r + state.tent.r
   let dFire = dist(state.player, state.fire);
 let fireColRadius = state.fire.r - 8; 
   if (dFire < state.player.r + fireColRadius) { let angle = Math.atan2(state.player.y - state.fire.y, state.player.x - state.fire.x);
-state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.player.r + fireColRadius);
+state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.fire.r + fireColRadius);
 }
   
   state.dayNightTimer += dt;
@@ -540,24 +540,49 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
               document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay} <br><br> <span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${state.sessionGoldenWood} Golden Wood Earned!</span>`; 
               goUI.classList.remove("hidden"); 
          
- } 
-      }, 1500);
+ }     }, 1500);
 }
   }
 
+  // === MİNİMALİST VE MOBİL (iOS) UYUMLU SES MOTORU YÖNETİMİ ===
   if (audioStarted) {
     const d = dist(state.player, state.fire);
-let fireVol = 1 - (d / 350); if (isNaN(fireVol) || fireVol < 0 || state.fire.level <= 0) fireVol = 0;
-sounds.fire.volume = Math.max(0, Math.min(1, fireVol * 0.8));
-    if (isNight()) { sounds.day.volume = Math.max(0, Math.min(1, sounds.day.volume - 0.01)) || 0;
-sounds.night.volume = Math.max(0, Math.min(0.5, sounds.night.volume + 0.01)) || 0; } else { sounds.night.volume = Math.max(0, Math.min(1, sounds.night.volume - 0.01)) ||
-0; sounds.day.volume = Math.max(0, Math.min(0.5, sounds.day.volume + 0.01)) || 0;
-}
-    if (state.windDuration > 0) { sounds.wind.volume = Math.max(0, Math.min(0.6, sounds.wind.volume + 0.02));
-} else { sounds.wind.volume = Math.max(0, Math.min(0.6, sounds.wind.volume - 0.01));
-}
-    if (state.rainDuration > 0) { sounds.rain.volume = Math.max(0, Math.min(0.5, sounds.rain.volume + 0.02));
-} else { sounds.rain.volume = Math.max(0, Math.min(0.5, sounds.rain.volume - 0.01)); }
+    let fireVol = 1 - (d / 350); if (isNaN(fireVol) || fireVol < 0 || state.fire.level <= 0) fireVol = 0;
+    
+    // Ateş Sesi Kontrolü
+    if (fireVol > 0 && state.fire.level > 0) {
+      if (sounds.fire.paused) sounds.fire.play().catch(()=>{});
+      sounds.fire.volume = Math.min(0.8, fireVol);
+    } else {
+      if (!sounds.fire.paused) sounds.fire.pause();
+    }
+
+    // Gündüz / Gece Kontrolü
+    if (isNight()) {
+      if (sounds.night.paused) sounds.night.play().catch(()=>{});
+      if (!sounds.day.paused) sounds.day.pause();
+      sounds.night.volume = 0.5;
+    } else {
+      if (sounds.day.paused) sounds.day.play().catch(()=>{});
+      if (!sounds.night.paused) sounds.night.pause();
+      sounds.day.volume = 0.5;
+    }
+
+    // Rüzgar Fırtınası Kontrolü
+    if (state.windDuration > 0) {
+      if (sounds.wind.paused) sounds.wind.play().catch(()=>{});
+      sounds.wind.volume = 0.6;
+    } else {
+      if (!sounds.wind.paused) sounds.wind.pause();
+    }
+
+    // Yağmur Kontrolü
+    if (state.rainDuration > 0) {
+      if (sounds.rain.paused) sounds.rain.play().catch(()=>{});
+      sounds.rain.volume = 0.5;
+    } else {
+      if (!sounds.rain.paused) sounds.rain.pause();
+    }
   }
   
   updateWalkAnimation(dt, isMoving); collectItems(); updateRespawns(dt);
@@ -785,7 +810,6 @@ function resetGame() {
 state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
 state.sessionGoldenWood = 0;
     
-    // YENİ: Oyuna her başlandığında çanta kapasitesini mevcut seviyeye göre ayarla
     updateMaxWoodCapacity();
     
     const wWrap = document.getElementById("woodIconsWrapper");
@@ -956,7 +980,6 @@ const dynamicQuitBtn = document.getElementById("quitBtn"); if(dynamicQuitBtn) dy
 // YENİ: MARKET (UPGRADES) EKRANI & MANTIK 
 // =========================================
 
-// HTML dosyasını değiştirmemek için "UPGRADES" butonunu ana menüye dinamik olarak ekliyoruz
 const mainMenuBtns = document.querySelector("#mainMenu .menu-buttons");
 if (mainMenuBtns && !document.getElementById("upgradesBtn")) {
     const upgBtn = document.createElement("button");
@@ -966,7 +989,6 @@ if (mainMenuBtns && !document.getElementById("upgradesBtn")) {
     mainMenuBtns.appendChild(upgBtn);
 }
 
-// Market ekranını çizen ve güncelleyen fonksiyon
 function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     const uMenu = document.getElementById("upgradesMenu");
@@ -1014,7 +1036,6 @@ function renderUpgradesMenu() {
     });
 }
 
-// Satın Alma Mantığı
 window.buyBackpackUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     
@@ -1023,30 +1044,24 @@ window.buyBackpackUpgrade = function() {
     const nextUpgrade = UPGRADE_DATA.backpack[currentBackpackTier];
     
     if (totalGold >= nextUpgrade.cost) {
-        // Altını düş ve kaydet
         totalGold -= nextUpgrade.cost;
         localStorage.setItem("campfireGoldenWood", totalGold);
         
-        // Seviyeyi artır ve kaydet
         currentBackpackTier++;
         localStorage.setItem("backpackTier", currentBackpackTier);
         
-        // Kapasiteyi oyunda anında aktifleştir ve UI'ı güncelle
         updateMaxWoodCapacity();
         const wWrap = document.getElementById("woodIconsWrapper");
         if (wWrap) wWrap.innerHTML = renderWoodIcons();
         
-        // Market ekranını yeniden çiz (altın ve kart güncellenir)
         renderUpgradesMenu();
         
         if(sounds && sounds.feed) sounds.feed.play(); 
     } else {
-        // TARAYICI ALERT'Ü YERİNE ŞIK OYUN İÇİ BİLDİRİM
         showShopNotification("Not enough Golden Wood! Keep surviving.");
     }
 };
 
-// Yumuşakça belirip kaybolan bildirim fonksiyonu
 function showShopNotification(message) {
     const notifEl = document.getElementById("shopNotification");
     if (!notifEl) return;
@@ -1054,16 +1069,13 @@ function showShopNotification(message) {
     notifEl.textContent = message;
     notifEl.style.opacity = "1";
     
-    // Eğer eski bir zamanlayıcı varsa temizle (arka arkaya basılırsa hata olmasın)
     if (window.shopNotifTimeout) clearTimeout(window.shopNotifTimeout);
     
-    // 2 saniye sonra yazıyı yavaşça kapat
     window.shopNotifTimeout = setTimeout(() => {
         notifEl.style.opacity = "0";
     }, 2000);
 }
 
-// Ana menüdeki UPGRADES butonuna basınca Market'i aç
 const upgBtnEl = document.getElementById("upgradesBtn");
 if(upgBtnEl) {
     upgBtnEl.addEventListener("click", () => {
