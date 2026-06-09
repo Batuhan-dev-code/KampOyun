@@ -101,7 +101,9 @@ const SVG_MOON = '<svg class="time-icon moon-icon" viewBox="0 0 100 100"><path d
 
 const topRow = document.createElement("div"); topRow.className = "hud-row";
 const bottomRow = document.createElement("div"); bottomRow.className = "hud-row";
-
+// ====== GEÇİCİ TEST KODU (TEST BİTİNCE SİLİNECEK) ======
+localStorage.setItem("campfireGoldenWood", 5000);
+// =======================================================
 // OYUN MOTORU DEĞİŞKENLERİ
 const state = {
   status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
