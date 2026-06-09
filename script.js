@@ -108,7 +108,7 @@ const state = {
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
-  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
+  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0, // HATALI NOKTALI VİRGÜL BURADA DÜZELTİLDİ!
   
   maxWood: 5, 
   sessionGoldenWood: 0, 
@@ -122,10 +122,15 @@ const UPGRADE_DATA = {
     { level: 1, capacity: 10, cost: 150 },
     { level: 2, capacity: 15, cost: 450 },
     { level: 3, capacity: 20, cost: 1200 }
+  ],
+  pet: [
+    { level: 1, speed: 190, cost: 300 },
+    { level: 2, speed: 230, cost: 700 }
   ]
 };
 
 let currentBackpackTier = parseInt(localStorage.getItem("backpackTier")) || 0;
+let currentPetTier = parseInt(localStorage.getItem("campfirePetTier")) || 0;
 
 function updateMaxWoodCapacity() {
     if (currentBackpackTier === 0) {
@@ -134,8 +139,19 @@ function updateMaxWoodCapacity() {
         state.maxWood = UPGRADE_DATA.backpack[currentBackpackTier - 1].capacity;
     }
 }
-updateMaxWoodCapacity();
 
+function updatePetStats() {
+    if (currentPetTier === 0) {
+        state.pet.speed = 155;
+    } else if (currentPetTier === 1) {
+        state.pet.speed = 190;
+    } else if (currentPetTier === 2) {
+        state.pet.speed = 230;
+    }
+}
+
+updateMaxWoodCapacity();
+updatePetStats();
 
 function renderWoodIcons() {
     let html = '<span class="wood-label">Wood</span>';
@@ -320,32 +336,73 @@ return 1 - (cyclePos - (CYCLE_SECONDS - edge)) / edge; }
 
 function updatePet(dt) {
   if (state.gameOver) return;
-const dToPlayer = dist(state.pet, state.player); const dToTent = dist(state.pet, state.tent); const night = isNight();
-if (night) {
+  const dToPlayer = dist(state.pet, state.player); const dToTent = dist(state.pet, state.tent); const night = isNight();
+  
+  if (night) {
     state.pet.isFetching = false; state.pet.hasWood = false;
-if (dToTent < 150) { state.pet.targetX = state.tent.x + 45; state.pet.targetY = state.tent.y + 40;
-state.pet.isSleeping = dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 5; state.pet.isSitting = state.pet.isSleeping; } else { state.pet.targetX = state.tent.x + 45;
-state.pet.targetY = state.tent.y + 40; state.pet.isSleeping = false; state.pet.isSitting = false;
-}
+    
+    if (currentPetTier === 0) {
+      if (dToTent < 150) { state.pet.targetX = state.tent.x + 45; state.pet.targetY = state.tent.y + 40;
+      state.pet.isSleeping = dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 5; state.pet.isSitting = state.pet.isSleeping; } else { state.pet.targetX = state.tent.x + 45;
+      state.pet.targetY = state.tent.y + 40; state.pet.isSleeping = false; state.pet.isSitting = false;
+      }
+    } else {
+      state.pet.isSleeping = false;
+      if (dToPlayer > 50) {
+          state.pet.targetX = state.player.x + 15;
+          state.pet.targetY = state.player.y + 15;
+          state.pet.isSitting = false;
+      } else {
+          state.pet.isSitting = true;
+      }
+
+      if (!state.pet.barkCooldown) state.pet.barkCooldown = 0;
+      if (state.pet.barkCooldown > 0) state.pet.barkCooldown -= dt;
+      
+      if (state.pet.barkCooldown <= 0 && state.enemies.length > 0) {
+          let closeEnemy = state.enemies.find(e => dist(state.pet, e) < 160);
+          if (closeEnemy) {
+              state.floatingTexts.push({ x: state.pet.x, y: state.pet.y - 25, text: "WOOF! WOOF!", life: 1.2, color: "#ffd700" });
+              playSound(sounds.wood);
+              state.pet.barkCooldown = 4.0;
+          }
+      }
+
+      if (currentPetTier === 2) {
+          if (!state.pet.attackCooldown) state.pet.attackCooldown = 0;
+          if (state.pet.attackCooldown > 0) state.pet.attackCooldown -= dt;
+          
+          if (state.pet.attackCooldown <= 0) {
+              let attackTarget = state.enemies.find(e => dist(state.pet, e) < 65);
+              if (attackTarget && (!attackTarget.stunTimer || attackTarget.stunTimer <= 0)) {
+                  attackTarget.stunTimer = 1.5;
+                  state.floatingTexts.push({ x: attackTarget.x, y: attackTarget.y - 20, text: "STUNNED!", life: 1.5, color: "#ff4a4a" });
+                  state.pet.attackCooldown = 10.0;
+                  state.pet.x = attackTarget.x;
+                  state.pet.y = attackTarget.y;
+              }
+          }
+      }
+    }
   } else {
     state.pet.isSleeping = false;
     if (!state.pet.isFetching && !state.pet.hasWood) { state.pet.fetchTimer -= dt;
-if (state.pet.fetchTimer <= 0) { state.pet.isFetching = true; state.pet.targetX = 50 + Math.random() * ((canvas.clientWidth || 800) - 100);
-state.pet.targetY = 50 + Math.random() * ((canvas.clientHeight || 600) - 100);
-} }
+    if (state.pet.fetchTimer <= 0) { state.pet.isFetching = true; state.pet.targetX = 50 + Math.random() * ((canvas.clientWidth || 800) - 100);
+    state.pet.targetY = 50 + Math.random() * ((canvas.clientHeight || 600) - 100);
+    } }
     if (state.pet.isFetching && !state.pet.hasWood) { state.pet.isSitting = false;
-if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false;
-} } else if (state.pet.hasWood) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false;
-if (dToPlayer < 40) { if (state.bagWood < state.maxWood) { state.bagWood++; state.score += 5; playSound(sounds.wood);
-state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false;
-state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x;
-state.pet.targetY = state.player.y; state.pet.isSitting = false; } else if (dToPlayer < 40) { state.pet.isSitting = true;
-} }
+    if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false;
+    } } else if (state.pet.hasWood) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false;
+    if (dToPlayer < 40) { if (state.bagWood < state.maxWood) { state.bagWood++; state.score += 5; playSound(sounds.wood);
+    state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false;
+    state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x;
+    state.pet.targetY = state.player.y; state.pet.isSitting = false; } else if (dToPlayer < 40) { state.pet.isSitting = true;
+    } }
   }
   if (!state.pet.isSitting) { let dx = state.pet.targetX - state.pet.x; let dy = state.pet.targetY - state.pet.y;
-let angle = Math.atan2(dy, dx) || 0; state.pet.angle = angle; let moveDist = state.pet.speed * dt;
-if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) > moveDist) { state.pet.x += (Math.cos(angle) * moveDist) || 0;
-state.pet.y += (Math.sin(angle) * moveDist) || 0; } }
+  let angle = Math.atan2(dy, dx) || 0; state.pet.angle = angle; let moveDist = state.pet.speed * dt;
+  if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) > moveDist) { state.pet.x += (Math.cos(angle) * moveDist) || 0;
+  state.pet.y += (Math.sin(angle) * moveDist) || 0; } }
 }
 
 function updateRaccoons(dt) {
@@ -454,7 +511,7 @@ state.player.y = state.tent.y + Math.sin(angle) * (state.player.r + state.tent.r
   let dFire = dist(state.player, state.fire);
 let fireColRadius = state.fire.r - 8; 
   if (dFire < state.player.r + fireColRadius) { let angle = Math.atan2(state.player.y - state.fire.y, state.player.x - state.fire.x);
-state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.fire.r + fireColRadius);
+state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.player.r + fireColRadius);
 }
   
   state.dayNightTimer += dt;
@@ -491,31 +548,37 @@ state.enemies.push({ x: state.player.x + Math.cos(angle) * spawnDist, y: state.p
   const safeRadius = (state.fire.level / 100 * 180) + 30;
 for (let i = state.enemies.length - 1; i >= 0; i--) {
     let enemy = state.enemies[i];
-enemy.wobble += dt * 4; let dx = state.player.x - enemy.x + Math.cos(enemy.wobble) * 20;
-let dy = state.player.y - enemy.y + Math.sin(enemy.wobble) * 20; let pDist = Math.hypot(dx, dy);
-if (pDist > 0) { dx /= pDist; dy /= pDist;
-}
+    
+    if (!enemy.stunTimer) enemy.stunTimer = 0;
+    if (enemy.stunTimer > 0) {
+        enemy.stunTimer -= dt;
+        continue;
+    }
+
+    enemy.wobble += dt * 4; let dx = state.player.x - enemy.x + Math.cos(enemy.wobble) * 20;
+    let dy = state.player.y - enemy.y + Math.sin(enemy.wobble) * 20; let pDist = Math.hypot(dx, dy);
+    if (pDist > 0) { dx /= pDist; dy /= pDist; }
     if (state.superModeTimer > 0) { dx = -dx; dy = -dy; enemy.speed = 90;
-} else { enemy.speed = enemy.baseSpeed; }
+    } else { enemy.speed = enemy.baseSpeed; }
     let nextX = enemy.x + dx * enemy.speed * dt;
-let nextY = enemy.y + dy * enemy.speed * dt;
+    let nextY = enemy.y + dy * enemy.speed * dt;
     let eTentDist = dist({ x: nextX, y: nextY }, state.tent);
-if (eTentDist < 14 + state.tent.r) { let tAngle = Math.atan2(enemy.y - state.tent.y, enemy.x - state.tent.x);
-nextX = state.tent.x + Math.cos(tAngle) * (14 + state.tent.r); nextY = state.tent.y + Math.sin(tAngle) * (14 + state.tent.r);
-}
+    if (eTentDist < 14 + state.tent.r) { let tAngle = Math.atan2(enemy.y - state.tent.y, enemy.x - state.tent.x);
+    nextX = state.tent.x + Math.cos(tAngle) * (14 + state.tent.r); nextY = state.tent.y + Math.sin(tAngle) * (14 + state.tent.r);
+    }
     let fDist = dist({ x: nextX, y: nextY }, state.fire);
-if (fDist < safeRadius && state.fire.level > 0) { let fAngle = Math.atan2(enemy.y - state.fire.y, enemy.x - state.fire.x);
-nextX = state.fire.x + Math.cos(fAngle) * safeRadius; nextY = state.fire.y + Math.sin(fAngle) * safeRadius;
-}
+    if (fDist < safeRadius && state.fire.level > 0) { let fAngle = Math.atan2(enemy.y - state.fire.y, enemy.x - state.fire.x);
+    nextX = state.fire.x + Math.cos(fAngle) * safeRadius; nextY = state.fire.y + Math.sin(fAngle) * safeRadius;
+    }
     enemy.x = nextX; enemy.y = nextY;
-if (dist(enemy, state.player) < 20) { if (state.superModeTimer > 0) { state.score += 50;
-state.floatingTexts.push({ x: enemy.x, y: enemy.y - 10, text: "+50", life: 1.5, color: "#ffd700" }); spawnSparks(enemy.x, enemy.y, 15); state.enemies.splice(i, 1);
-} else { state.health -= dt * 25; state.damageFlash = 1;
-} }
+    if (dist(enemy, state.player) < 20) { if (state.superModeTimer > 0) { state.score += 50;
+    state.floatingTexts.push({ x: enemy.x, y: enemy.y - 10, text: "+50", life: 1.5, color: "#ffd700" }); spawnSparks(enemy.x, enemy.y, 15); state.enemies.splice(i, 1);
+    } else { state.health -= dt * 25; state.damageFlash = 1;
+    } }
   }
 
   if (state.damageFlash > 0) { state.damageFlash -= dt * 2.5;
-if (state.damageFlash < 0) state.damageFlash = 0; }
+  if (state.damageFlash < 0) state.damageFlash = 0; }
   
   if (state.health <= 0) {
     state.health = 0;
@@ -544,12 +607,10 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
 }
   }
 
-  // === MİNİMALİST VE MOBİL (iOS) UYUMLU SES MOTORU YÖNETİMİ ===
   if (audioStarted) {
     const d = dist(state.player, state.fire);
     let fireVol = 1 - (d / 350); if (isNaN(fireVol) || fireVol < 0 || state.fire.level <= 0) fireVol = 0;
     
-    // Ateş Sesi Kontrolü
     if (fireVol > 0 && state.fire.level > 0) {
       if (sounds.fire.paused) sounds.fire.play().catch(()=>{});
       sounds.fire.volume = Math.min(0.8, fireVol);
@@ -557,7 +618,6 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
       if (!sounds.fire.paused) sounds.fire.pause();
     }
 
-    // Gündüz / Gece Kontrolü
     if (isNight()) {
       if (sounds.night.paused) sounds.night.play().catch(()=>{});
       if (!sounds.day.paused) sounds.day.pause();
@@ -568,7 +628,6 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
       sounds.day.volume = 0.5;
     }
 
-    // Rüzgar Fırtınası Kontrolü
     if (state.windDuration > 0) {
       if (sounds.wind.paused) sounds.wind.play().catch(()=>{});
       sounds.wind.volume = 0.6;
@@ -576,7 +635,6 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
       if (!sounds.wind.paused) sounds.wind.pause();
     }
 
-    // Yağmur Kontrolü
     if (state.rainDuration > 0) {
       if (sounds.rain.paused) sounds.rain.play().catch(()=>{});
       sounds.rain.volume = 0.5;
@@ -767,7 +825,7 @@ function drawRaccoons() {
     const bounce = Math.abs(Math.sin(rac.wobble)) * 3;
     ctx.fillStyle = "#4a4a4a"; ctx.beginPath(); ctx.ellipse(-12, -2 - bounce, 6, 3, Math.PI/6, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#222"; ctx.beginPath(); ctx.ellipse(-14, -1 - bounce, 2, 3, Math.PI/6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(-10, -3 - bounce, 2, 3, Math.PI/6, 0, Math.PI*2); ctx.fill();
    
- ctx.fillStyle = "#696969"; ctx.fillRect(-8, -6 - bounce, 14, 8);
+  ctx.fillStyle = "#696969"; ctx.fillRect(-8, -6 - bounce, 14, 8);
     ctx.fillStyle = "#222"; ctx.fillRect(-6, 2 - bounce, 2, 3); ctx.fillRect(2, 2 - bounce, 2, 3);
     ctx.fillStyle = "#696969"; ctx.fillRect(4, -8 - bounce, 8, 7);
     ctx.fillStyle = "#4a4a4a"; ctx.fillRect(4, -10 - bounce, 2, 2);
@@ -811,6 +869,7 @@ state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer =
 state.sessionGoldenWood = 0;
     
     updateMaxWoodCapacity();
+    updatePetStats();
     
     const wWrap = document.getElementById("woodIconsWrapper");
     if (wWrap) { wWrap.innerHTML = renderWoodIcons();
@@ -977,7 +1036,7 @@ const dynamicQuitBtn = document.getElementById("quitBtn"); if(dynamicQuitBtn) dy
 
 
 // =========================================
-// YENİ: MARKET (UPGRADES) EKRANI & MANTIK 
+// MARKET (UPGRADES) EKRANI & KARTLAR 
 // =========================================
 
 const mainMenuBtns = document.querySelector("#mainMenu .menu-buttons");
@@ -993,20 +1052,33 @@ function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     const uMenu = document.getElementById("upgradesMenu");
     
-    let buttonHTML = "";
-    let descHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
+    let bpButtonHTML = "";
+    let bpDescHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
     
     if (currentBackpackTier === 0) {
-        buttonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`;
+        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`;
     } else if (currentBackpackTier === 1) {
-        descHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>";
-        buttonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`;
+        bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>";
+        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`;
     } else if (currentBackpackTier === 2) {
-        descHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>";
-        buttonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`;
+        bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>";
+        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`;
     } else {
-        descHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-        buttonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`;
+        bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
+        bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`;
+    }
+
+    let petButtonHTML = "";
+    let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
+    
+    if (currentPetTier === 0) {
+        petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`;
+    } else if (currentPetTier === 1) {
+        petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>";
+        petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`;
+    } else {
+        petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
+        petButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`;
     }
 
     uMenu.innerHTML = `
@@ -1015,14 +1087,24 @@ function renderUpgradesMenu() {
         
         <div id="shopNotification" style="color: #ff4a4a; font-weight: bold; font-size: 14px; height: 20px; margin-bottom: 15px; opacity: 0; transition: opacity 0.3s ease; text-transform: uppercase; letter-spacing: 1px;"></div>
         
-        <div class="shop-container">
+        <div class="shop-container" style="display: flex; flex-direction: column; gap: 12px;">
             <div class="shop-card">
                 <div class="card-info">
                     <h3>Wood Backpack (Lv. ${currentBackpackTier})</h3>
-                    <p>${descHTML}</p>
+                    <p>${bpDescHTML}</p>
                 </div>
                 <div class="button-container">
-                    ${buttonHTML}
+                    ${bpButtonHTML}
+                </div>
+            </div>
+            
+            <div class="shop-card">
+                <div class="card-info">
+                    <h3>Good Boy Training (Lv. ${currentPetTier})</h3>
+                    <p>${petDescHTML}</p>
+                </div>
+                <div class="button-container">
+                    ${petButtonHTML}
                 </div>
             </div>
         </div>
@@ -1038,15 +1120,12 @@ function renderUpgradesMenu() {
 
 window.buyBackpackUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
-    
     if (currentBackpackTier >= UPGRADE_DATA.backpack.length) return;
-    
     const nextUpgrade = UPGRADE_DATA.backpack[currentBackpackTier];
     
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
         localStorage.setItem("campfireGoldenWood", totalGold);
-        
         currentBackpackTier++;
         localStorage.setItem("backpackTier", currentBackpackTier);
         
@@ -1055,7 +1134,25 @@ window.buyBackpackUpgrade = function() {
         if (wWrap) wWrap.innerHTML = renderWoodIcons();
         
         renderUpgradesMenu();
+        if(sounds && sounds.feed) sounds.feed.play(); 
+    } else {
+        showShopNotification("Not enough Golden Wood! Keep surviving.");
+    }
+};
+
+window.buyPetUpgrade = function() {
+    let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
+    if (currentPetTier >= UPGRADE_DATA.pet.length) return;
+    const nextUpgrade = UPGRADE_DATA.pet[currentPetTier];
+    
+    if (totalGold >= nextUpgrade.cost) {
+        totalGold -= nextUpgrade.cost;
+        localStorage.setItem("campfireGoldenWood", totalGold);
+        currentPetTier++;
+        localStorage.setItem("campfirePetTier", currentPetTier);
         
+        updatePetStats();
+        renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
     } else {
         showShopNotification("Not enough Golden Wood! Keep surviving.");
@@ -1065,12 +1162,9 @@ window.buyBackpackUpgrade = function() {
 function showShopNotification(message) {
     const notifEl = document.getElementById("shopNotification");
     if (!notifEl) return;
-    
     notifEl.textContent = message;
     notifEl.style.opacity = "1";
-    
     if (window.shopNotifTimeout) clearTimeout(window.shopNotifTimeout);
-    
     window.shopNotifTimeout = setTimeout(() => {
         notifEl.style.opacity = "0";
     }, 2000);
