@@ -101,16 +101,14 @@ const SVG_MOON = '<svg class="time-icon moon-icon" viewBox="0 0 100 100"><path d
 
 const topRow = document.createElement("div"); topRow.className = "hud-row";
 const bottomRow = document.createElement("div"); bottomRow.className = "hud-row";
-// ====== GEÇİCİ TEST KODU (TEST BİTİNCE SİLİNECEK) ======
-localStorage.setItem("campfireGoldenWood", 5000);
-// =======================================================
+
 // OYUN MOTORU DEĞİŞKENLERİ
 const state = {
   status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
-  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0, // HATALI NOKTALI VİRGÜL BURADA DÜZELTİLDİ!
+  pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
   maxWood: 5, 
   sessionGoldenWood: 0, 
@@ -336,10 +334,13 @@ if (cyclePos < DAY_SECONDS - edge) return 0; if (cyclePos < DAY_SECONDS) return 
 if (cyclePos < DAY_SECONDS + edge) return 1; if (cyclePos < CYCLE_SECONDS - edge) return 1;
 return 1 - (cyclePos - (CYCLE_SECONDS - edge)) / edge; }
 
+// === DİNAMİK HIZ AYARLI VE KUSURSUZ YOLDAŞ SİSTEMİ ===
 function updatePet(dt) {
   if (state.gameOver) return;
   const dToPlayer = dist(state.pet, state.player); const dToTent = dist(state.pet, state.tent); const night = isNight();
   
+  let isJustFollowingPlayer = false;
+
   if (night) {
     state.pet.isFetching = false; state.pet.hasWood = false;
     
@@ -354,6 +355,7 @@ function updatePet(dt) {
           state.pet.targetX = state.player.x + 15;
           state.pet.targetY = state.player.y + 15;
           state.pet.isSitting = false;
+          isJustFollowingPlayer = true; 
       } else {
           state.pet.isSitting = true;
       }
@@ -398,11 +400,18 @@ function updatePet(dt) {
     if (dToPlayer < 40) { if (state.bagWood < state.maxWood) { state.bagWood++; state.score += 5; playSound(sounds.wood);
     state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false;
     state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x;
-    state.pet.targetY = state.player.y; state.pet.isSitting = false; } else if (dToPlayer < 40) { state.pet.isSitting = true;
+    state.pet.targetY = state.player.y; state.pet.isSitting = false;
+    isJustFollowingPlayer = true; 
+    } else if (dToPlayer < 40) { state.pet.isSitting = true;
     } }
   }
+  
   if (!state.pet.isSitting) { let dx = state.pet.targetX - state.pet.x; let dy = state.pet.targetY - state.pet.y;
-  let angle = Math.atan2(dy, dx) || 0; state.pet.angle = angle; let moveDist = state.pet.speed * dt;
+  let angle = Math.atan2(dy, dx) || 0; state.pet.angle = angle;
+  
+  let actualSpeed = isJustFollowingPlayer ? state.player.speed : state.pet.speed;
+  let moveDist = actualSpeed * dt;
+  
   if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) > moveDist) { state.pet.x += (Math.cos(angle) * moveDist) || 0;
   state.pet.y += (Math.sin(angle) * moveDist) || 0; } }
 }
@@ -487,9 +496,8 @@ function update(dt) {
 return; }
   if (state.gameOver) { updateDeathAnimation(dt); return; }
   const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
-const moveY = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
-  const len = Math.hypot(moveX, moveY) ||
-1;
+  const moveY = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
+  const len = Math.hypot(moveX, moveY) || 1;
   const isMoving = moveX !== 0 || moveY !== 0;
   if (state.superModeTimer > 0) { state.superModeTimer -= dt;
 state.player.speed = 260; if (isMoving && Math.random() < 0.4) { state.playerTrails.push({ x: state.player.x, y: state.player.y, life: 0.3 });
@@ -502,7 +510,7 @@ if (state.playerTrails[i].life <= 0) state.playerTrails.splice(i, 1); }
 }
   
   state.player.x += ((moveX / len) * state.player.speed * dt) || 0;
-state.player.y += ((moveY / len) * state.player.speed * dt) || 0;
+  state.player.y += ((moveY / len) * state.player.speed * dt) || 0;
   clampPlayer();
 
   let dTent = dist(state.player, state.tent);
@@ -675,8 +683,23 @@ drawWoodItem(fx + 12, fy + 2, -Math.PI / 6); drawWoodItem(fx, fy - 4, Math.PI / 
 }
 function drawSmoke() { state.smokeParticles.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life * 0.6); ctx.fillStyle = "#a8b0b8"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
 }
-function drawSparks() { state.sparks.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = "#ffb300"; ctx.shadowColor = "#ff4500"; ctx.shadowBlur = 6; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+
+// === KIVILCIM ÇİZİMİ HATASI DÜZELTİLDİ ===
+function drawSparks() { 
+    state.sparks.forEach(p => { 
+        ctx.save(); 
+        ctx.globalAlpha = Math.max(0, p.life); 
+        ctx.fillStyle = "#ffb300"; 
+        ctx.shadowColor = "#ff4500"; 
+        ctx.shadowBlur = 6; 
+        ctx.beginPath(); 
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); 
+        ctx.fill(); 
+        ctx.restore(); 
+    });
 }
+// ===========================================
+
 function drawFloatingTexts() { state.floatingTexts.forEach(ft => { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, ft.life)); ctx.fillStyle = ft.color || "#ffffff"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "#000000"; ctx.shadowBlur = 4; ctx.fillText(ft.text, ft.x, ft.y); ctx.restore(); });
 }
 function drawPlayerTrails() { state.playerTrails.forEach(t => { ctx.save(); ctx.globalAlpha = Math.max(0, t.life * 2); ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(t.x, t.y, state.player.r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
@@ -1015,7 +1038,7 @@ document.getElementById("scoresBtn").addEventListener("click", () => {
             <p>🔥 Best Score: <span style="color:#ffd700;">${high}</span></p>
             <p>📅 Max Days: <span style="color:#ffd700;">${day}</span></p>
         
-    <hr style="border:0; border-top:1px solid #555; margin: 15px 0;">
+     <hr style="border:0; border-top:1px solid #555; margin: 15px 0;">
             <p>💰 Total Golden Wood: <span style="color:#ffd700;">${bank}</span></p>
         </div>
     `; 
