@@ -1,8 +1,13 @@
+// ====== GEÇİCİ TEST KODU ======
+// Altın hilesini açmak için aşağıdaki satırın başındaki "//" işaretlerini sil.
+localStorage.setItem("campfireGoldenWood", 5000);
+// =======================================================
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const tintCanvas = document.createElement("canvas");
-const tintCtx = tintCanvas.getContext("2d");
+const tintCtx = tintCanvas.getContext("2d"); 
 
 const hudEl = document.querySelector(".hud");
 
@@ -92,6 +97,9 @@ style.innerHTML = `
   .time-container { position: relative; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; }
   .time-icon { position: absolute; width: 24px; height: 24px; transition: opacity 0.5s; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)); }
   .score-text { font-size: 13px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 6px; text-align: center; line-height: 1.4; }
+  .shop-container { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
+  .shop-container::-webkit-scrollbar { width: 4px; }
+  .shop-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
 `;
 document.head.appendChild(style);
 
@@ -126,11 +134,17 @@ const UPGRADE_DATA = {
   pet: [
     { level: 1, speed: 190, cost: 300 },
     { level: 2, speed: 230, cost: 700 }
+  ],
+  fireShield: [
+    { level: 1, cost: 200 },  // Wind Resist
+    { level: 2, cost: 500 },  // Rain Resist
+    { level: 3, cost: 1000 }  // Storm Immune
   ]
 };
 
 let currentBackpackTier = parseInt(localStorage.getItem("backpackTier")) || 0;
 let currentPetTier = parseInt(localStorage.getItem("campfirePetTier")) || 0;
+let currentFireShieldTier = parseInt(localStorage.getItem("campfireFireShieldTier")) || 0;
 
 function updateMaxWoodCapacity() {
     if (currentBackpackTier === 0) {
@@ -334,7 +348,6 @@ if (cyclePos < DAY_SECONDS - edge) return 0; if (cyclePos < DAY_SECONDS) return 
 if (cyclePos < DAY_SECONDS + edge) return 1; if (cyclePos < CYCLE_SECONDS - edge) return 1;
 return 1 - (cyclePos - (CYCLE_SECONDS - edge)) / edge; }
 
-// === DİNAMİK HIZ AYARLI VE KUSURSUZ YOLDAŞ SİSTEMİ ===
 function updatePet(dt) {
   if (state.gameOver) return;
   const dToPlayer = dist(state.pet, state.player); const dToTent = dist(state.pet, state.tent); const night = isNight();
@@ -536,10 +549,18 @@ if (Math.random() < 12 * dt) { state.windParticles.push({ x: (canvas.clientWidth
 } if (state.windDuration <= 0) state.windTimer = 40 + Math.random() * 40; } else { state.windTimer -= dt;
 if (state.windTimer <= 0) state.windDuration = 10 + Math.random() * 10; } }
 
+  // === FIRE SHIELD (FIRTINA KORUMASI) ÇARPANLARI ===
+  let windDrainMultiplier = 2.0; 
+  let rainDrainMultiplier = 2.5; 
+  
+  if (currentFireShieldTier >= 1) windDrainMultiplier = 1.3; // Rüzgar etkisi %35 azaldı
+  if (currentFireShieldTier >= 2) rainDrainMultiplier = 1.5; // Yağmur etkisi %40 azaldı
+  if (currentFireShieldTier >= 3) { windDrainMultiplier = 1.0; rainDrainMultiplier = 1.0; } // Tam Bağışıklık
+
   const fireWasAlive = state.fire.level > 0;
-let fireDrainRate = isNight() ? (1.6 * 1.5) : 1.6;
-  if (state.windDuration > 0) fireDrainRate *= 2.0;
-if (state.rainDuration > 0) fireDrainRate *= 2.5; 
+  let fireDrainRate = isNight() ? (1.6 * 1.5) : 1.6;
+  if (state.windDuration > 0) fireDrainRate *= windDrainMultiplier;
+  if (state.rainDuration > 0) fireDrainRate *= rainDrainMultiplier; 
   state.fire.level -= dt * fireDrainRate;
   if (state.fire.level <= 0) { state.fire.level = 0;
 if (fireWasAlive) { spawnSmoke(state.fire.x, state.fire.y, 15); } }
@@ -677,29 +698,40 @@ ctx.arc(0, 0, 7, Math.PI, 0); ctx.fill();
 ctx.arc(3, -4, 1.2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -1.5, 1, 0, Math.PI*2); ctx.fill(); ctx.restore();
 }
 
-function drawCampfireBase() { const fx = state.fire.x; const fy = state.fire.y + 15; ctx.fillStyle = "rgba(20, 10, 10, 0.7)"; ctx.beginPath();
-ctx.ellipse(fx, fy, 22, 12, 0, 0, Math.PI * 2); ctx.fill(); drawWoodItem(fx - 12, fy + 2, Math.PI / 6);
-drawWoodItem(fx + 12, fy + 2, -Math.PI / 6); drawWoodItem(fx, fy - 4, Math.PI / 2);
+function drawCampfireBase() { 
+  const fx = state.fire.x; const fy = state.fire.y + 15; 
+  ctx.fillStyle = "rgba(20, 10, 10, 0.7)"; 
+  ctx.beginPath();
+  ctx.ellipse(fx, fy, 22, 12, 0, 0, Math.PI * 2); 
+  ctx.fill(); 
+  
+  // === FIRE SHIELD LEVEL 1 (WINDBREAK STONES) GÖRSELİ ===
+  if (currentFireShieldTier >= 1) {
+      ctx.save();
+      ctx.fillStyle = "#6e6e6e";
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 1;
+      // Ateşin solundan sağına üst tarafa rüzgar kesici taşlar dizer
+      for(let i = 0; i < 5; i++) {
+          let angle = Math.PI + (i * Math.PI/4); // 180 ile 360 derece arası
+          let sx = fx + Math.cos(angle) * 19;
+          let sy = fy + Math.sin(angle) * 10 - 2;
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, 5, 4, angle, 0, Math.PI * 2);
+          ctx.fill(); 
+          ctx.stroke();
+      }
+      ctx.restore();
+  }
+
+  drawWoodItem(fx - 12, fy + 2, Math.PI / 6);
+  drawWoodItem(fx + 12, fy + 2, -Math.PI / 6); 
+  drawWoodItem(fx, fy - 4, Math.PI / 2);
 }
 function drawSmoke() { state.smokeParticles.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life * 0.6); ctx.fillStyle = "#a8b0b8"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
 }
-
-// === KIVILCIM ÇİZİMİ HATASI DÜZELTİLDİ ===
-function drawSparks() { 
-    state.sparks.forEach(p => { 
-        ctx.save(); 
-        ctx.globalAlpha = Math.max(0, p.life); 
-        ctx.fillStyle = "#ffb300"; 
-        ctx.shadowColor = "#ff4500"; 
-        ctx.shadowBlur = 6; 
-        ctx.beginPath(); 
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); 
-        ctx.fill(); 
-        ctx.restore(); 
-    });
+function drawSparks() { state.sparks.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = "#ffb300"; ctx.shadowColor = "#ff4500"; ctx.shadowBlur = 6; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
 }
-// ===========================================
-
 function drawFloatingTexts() { state.floatingTexts.forEach(ft => { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, ft.life)); ctx.fillStyle = ft.color || "#ffffff"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "#000000"; ctx.shadowBlur = 4; ctx.fillText(ft.text, ft.x, ft.y); ctx.restore(); });
 }
 function drawPlayerTrails() { state.playerTrails.forEach(t => { ctx.save(); ctx.globalAlpha = Math.max(0, t.life * 2); ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(t.x, t.y, state.player.r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
@@ -774,11 +806,25 @@ Math.PI/2)*5, 3.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
 
 function drawFireSprite() {
   if (state.fire.level <= 0) return;
-if (!fireSprite.complete || fireAnim.frameCount <= 0) return;
+  if (!fireSprite.complete || fireAnim.frameCount <= 0) return;
   const cols = 10; const totalFrames = 60;
-const frameWidth = fireSprite.width / 10; const frameHeight = fireSprite.height / 6; const currentFrame = Math.floor(state.fire.animationTimer % totalFrames);
-const sx = (currentFrame % cols) * frameWidth; const sy = Math.floor(currentFrame / cols) * frameHeight;
-ctx.drawImage(fireSprite, sx, sy, frameWidth, frameHeight, state.fire.x - 32, state.fire.y - 32, 64, 64);
+  const frameWidth = fireSprite.width / 10; const frameHeight = fireSprite.height / 6; 
+  const currentFrame = Math.floor(state.fire.animationTimer % totalFrames);
+  const sx = (currentFrame % cols) * frameWidth; const sy = Math.floor(currentFrame / cols) * frameHeight;
+  
+  ctx.drawImage(fireSprite, sx, sy, frameWidth, frameHeight, state.fire.x - 32, state.fire.y - 32, 64, 64);
+  
+  // === FIRE SHIELD LEVEL 2 (TREATED WOOD) GÖRSELİ ===
+  // Yağmur yağarken ateşin etrafına kimyasal camgöbeği bir parlama ekler
+  if (currentFireShieldTier >= 2 && state.rainDuration > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ctx.beginPath();
+      ctx.arc(state.fire.x, state.fire.y - 5, 25, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 255, 200, 0.25)";
+      ctx.fill();
+      ctx.restore();
+  }
 }
 
 function drawPlayerSprite() {
@@ -877,6 +923,21 @@ state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false))
 const darkFactor = nightBlend();
   if (darkFactor > 0) { ctx.save(); ctx.fillStyle = `rgba(8, 16, 34, ${0.2 + darkFactor * 0.65})`;
 ctx.fillRect(-5, -5, w, h); drawFireLight(); ctx.restore(); drawEnemies(); } else { drawFireLight(); }
+
+  // === FIRE SHIELD LEVEL 3 (GUARDIAN AURA) GÖRSELİ ===
+  if (currentFireShieldTier >= 3 && (state.windDuration > 0 || state.rainDuration > 0)) {
+      ctx.save();
+      ctx.beginPath();
+      // Çadırı ve ateşi kapsayan hafif oval dev bir altın kubbe
+      ctx.ellipse(state.fire.x, state.fire.y - 30, 95, 65, 0, Math.PI, 0);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255, 215, 0, 0.08)";
+      ctx.fill();
+      ctx.restore();
+  }
+
   drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); drawPlayerSprite(); drawFloatingTexts();
 const cw = canvas.clientWidth || 800; const ch = canvas.clientHeight || 600;
   if (state.dayMessageTimer > 0) { ctx.save();
@@ -1061,7 +1122,7 @@ const dynamicQuitBtn = document.getElementById("quitBtn"); if(dynamicQuitBtn) dy
 
 
 // =========================================
-// MARKET (UPGRADES) EKRANI & KARTLAR 
+// MARKET (UPGRADES) EKRANI & 3 ADET KART 
 // =========================================
 
 const mainMenuBtns = document.querySelector("#mainMenu .menu-buttons");
@@ -1077,34 +1138,28 @@ function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     const uMenu = document.getElementById("upgradesMenu");
     
+    // --- ÇANTA KARTI ---
     let bpButtonHTML = "";
     let bpDescHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
-    
-    if (currentBackpackTier === 0) {
-        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`;
-    } else if (currentBackpackTier === 1) {
-        bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>";
-        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`;
-    } else if (currentBackpackTier === 2) {
-        bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>";
-        bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`;
-    } else {
-        bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-        bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`;
-    }
+    if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`; }
+    else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
+    else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`; }
+    else { bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
+    // --- KÖPEK KARTI ---
     let petButtonHTML = "";
     let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
-    
-    if (currentPetTier === 0) {
-        petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`;
-    } else if (currentPetTier === 1) {
-        petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>";
-        petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`;
-    } else {
-        petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-        petButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`;
-    }
+    if (currentPetTier === 0) { petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`; }
+    else if (currentPetTier === 1) { petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>"; petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`; }
+    else { petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; petButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+
+    // --- FIRE SHIELD KARTI ---
+    let fsButtonHTML = "";
+    let fsDescHTML = "No protection. <br> Next: <span style='color:#ffd700'>Windbreak Stones (Lv. 1)</span>";
+    if (currentFireShieldTier === 0) { fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 200</button>`; }
+    else if (currentFireShieldTier === 1) { fsDescHTML = "Wind resistance. <br> Next: <span style='color:#ffd700'>Treated Wood (Lv. 2)</span>"; fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 500</button>`; }
+    else if (currentFireShieldTier === 2) { fsDescHTML = "Rain & Wind resistance. <br> Next: <span style='color:#ffd700'>Guardian Aura (Lv. 3)</span>"; fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 1000</button>`; }
+    else { fsDescHTML = "Immune to Storms. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; fsButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
     uMenu.innerHTML = `
         <h2>UPGRADES</h2>
@@ -1112,15 +1167,13 @@ function renderUpgradesMenu() {
         
         <div id="shopNotification" style="color: #ff4a4a; font-weight: bold; font-size: 14px; height: 20px; margin-bottom: 15px; opacity: 0; transition: opacity 0.3s ease; text-transform: uppercase; letter-spacing: 1px;"></div>
         
-        <div class="shop-container" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="shop-container">
             <div class="shop-card">
                 <div class="card-info">
                     <h3>Wood Backpack (Lv. ${currentBackpackTier})</h3>
                     <p>${bpDescHTML}</p>
                 </div>
-                <div class="button-container">
-                    ${bpButtonHTML}
-                </div>
+                <div class="button-container">${bpButtonHTML}</div>
             </div>
             
             <div class="shop-card">
@@ -1128,9 +1181,15 @@ function renderUpgradesMenu() {
                     <h3>Good Boy Training (Lv. ${currentPetTier})</h3>
                     <p>${petDescHTML}</p>
                 </div>
-                <div class="button-container">
-                    ${petButtonHTML}
+                <div class="button-container">${petButtonHTML}</div>
+            </div>
+
+            <div class="shop-card">
+                <div class="card-info">
+                    <h3>Fire Shield (Lv. ${currentFireShieldTier})</h3>
+                    <p>${fsDescHTML}</p>
                 </div>
+                <div class="button-container">${fsButtonHTML}</div>
             </div>
         </div>
         
@@ -1147,41 +1206,47 @@ window.buyBackpackUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentBackpackTier >= UPGRADE_DATA.backpack.length) return;
     const nextUpgrade = UPGRADE_DATA.backpack[currentBackpackTier];
-    
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
         localStorage.setItem("campfireGoldenWood", totalGold);
         currentBackpackTier++;
         localStorage.setItem("backpackTier", currentBackpackTier);
-        
         updateMaxWoodCapacity();
         const wWrap = document.getElementById("woodIconsWrapper");
         if (wWrap) wWrap.innerHTML = renderWoodIcons();
-        
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
-    } else {
-        showShopNotification("Not enough Golden Wood! Keep surviving.");
-    }
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
 window.buyPetUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentPetTier >= UPGRADE_DATA.pet.length) return;
     const nextUpgrade = UPGRADE_DATA.pet[currentPetTier];
-    
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
         localStorage.setItem("campfireGoldenWood", totalGold);
         currentPetTier++;
         localStorage.setItem("campfirePetTier", currentPetTier);
-        
         updatePetStats();
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
-    } else {
-        showShopNotification("Not enough Golden Wood! Keep surviving.");
-    }
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
+};
+
+// YENİ: Fire Shield Satın Alma Fonksiyonu
+window.buyFireShieldUpgrade = function() {
+    let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
+    if (currentFireShieldTier >= UPGRADE_DATA.fireShield.length) return;
+    const nextUpgrade = UPGRADE_DATA.fireShield[currentFireShieldTier];
+    if (totalGold >= nextUpgrade.cost) {
+        totalGold -= nextUpgrade.cost;
+        localStorage.setItem("campfireGoldenWood", totalGold);
+        currentFireShieldTier++;
+        localStorage.setItem("campfireFireShieldTier", currentFireShieldTier);
+        renderUpgradesMenu();
+        if(sounds && sounds.feed) sounds.feed.play(); 
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
 function showShopNotification(message) {
