@@ -37,7 +37,7 @@ if (!document.getElementById("upgradesMenu")) {
     document.querySelector(".game-shell").appendChild(uMenu);
 }
 
-// --- SES MOTORU ---
+// --- SES MOTORU (KANLI AY SESLERİ EKLENDİ) ---
 const sounds = {
   fire: new Audio("assets/fire.mp3"),
   day: new Audio("assets/day.mp3"),
@@ -45,17 +45,19 @@ const sounds = {
   wood: new Audio("assets/wood.mp3"),
   feed: new Audio("assets/feed.mp3"),
   wind: new Audio("assets/wind.mp3"),
-  rain: new Audio("assets/rain.mp3")
+  rain: new Audio("assets/rain.mp3"),
+  bloodmoon: new Audio("assets/bloodmoon.mp3"),
+  howl: new Audio("assets/howl.mp3")
 };
 sounds.fire.loop = true; sounds.day.loop = true; sounds.night.loop = true;
-sounds.wind.loop = true; sounds.rain.loop = true;
+sounds.wind.loop = true; sounds.rain.loop = true; sounds.bloodmoon.loop = true;
 let audioStarted = false;
 
 function initAudio() {
   if (audioStarted) return;
   audioStarted = true;
   sounds.day.volume = 0; sounds.night.volume = 0; sounds.fire.volume = 0;
-  sounds.wind.volume = 0; sounds.rain.volume = 0;
+  sounds.wind.volume = 0; sounds.rain.volume = 0; sounds.bloodmoon.volume = 0;
   Object.values(sounds).forEach(snd => {
     if (snd.loop) snd.play().catch(() => console.log("Audio file not added yet."));
   });
@@ -106,6 +108,7 @@ document.head.appendChild(style);
 const SVG_WOOD = '<svg class="wood-icon" viewBox="0 0 100 60"><rect x="10" y="20" width="80" height="20" rx="10"/></svg>';
 const SVG_SUN = '<svg class="time-icon sun-icon" viewBox="0 0 100 100"><circle cx="50" cy="50" r="20" fill="yellow"/><path d="M50 0 V10 M50 90 V100 M0 50 H10 M90 50 H100 M15 15 L22 22 M78 78 L85 85 M15 85 L22 78 M78 15 L85 22" stroke="yellow" stroke-width="5"/></svg>';
 const SVG_MOON = '<svg class="time-icon moon-icon" viewBox="0 0 100 100"><path d="M50 10 A40 40 0 1 0 90 50 A30 30 0 1 1 50 10 Z" fill="white"/></svg>';
+const SVG_BLOOD_MOON = '<svg class="time-icon blood-moon-icon" viewBox="0 0 100 100"><path d="M50 10 A40 40 0 1 0 90 50 A30 30 0 1 1 50 10 Z" fill="#ff2a2a" filter="drop-shadow(0px 0px 5px rgba(255,0,0,0.8))"/></svg>';
 
 const topRow = document.createElement("div"); topRow.className = "hud-row";
 const bottomRow = document.createElement("div"); bottomRow.className = "hud-row";
@@ -120,6 +123,9 @@ const state = {
   
   maxWood: 5, 
   sessionGoldenWood: 0, 
+  
+  // YENİ: KANLI AY DEĞİŞKENLERİ
+  bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0,
   
   bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0
 };
@@ -136,9 +142,9 @@ const UPGRADE_DATA = {
     { level: 2, speed: 230, cost: 700 }
   ],
   fireShield: [
-    { level: 1, cost: 200 },  // Wind Resist
-    { level: 2, cost: 500 },  // Rain Resist
-    { level: 3, cost: 1000 }  // Storm Immune
+    { level: 1, cost: 200 },  
+    { level: 2, cost: 500 },  
+    { level: 3, cost: 1000 }  
   ]
 };
 
@@ -177,7 +183,7 @@ const woodWrap = document.createElement("div"); woodWrap.className = "wood-conta
 woodWrap.innerHTML = renderWoodIcons(); topRow.appendChild(woodWrap);
 
 const timeWrap = document.createElement("div");
-timeWrap.className = "time-container"; timeWrap.innerHTML = SVG_SUN + SVG_MOON; topRow.appendChild(timeWrap);
+timeWrap.className = "time-container"; timeWrap.innerHTML = SVG_SUN + SVG_MOON + SVG_BLOOD_MOON; topRow.appendChild(timeWrap);
 const pauseBtnWrap = document.createElement("div"); pauseBtnWrap.className = "pause-btn"; pauseBtnWrap.innerHTML = "⏸";
 pauseBtnWrap.id = "hudPauseBtn"; topRow.appendChild(pauseBtnWrap);
 
@@ -275,8 +281,26 @@ const eBar = document.getElementById("energyBar"); if (eBar) eBar.style.width = 
   const wWrap = document.getElementById("woodIconsWrapper");
 if (wWrap) { const icons = wWrap.querySelectorAll(".wood-icon"); icons.forEach((icon, index) => { if (index < state.bagWood) icon.classList.add("active"); else icon.classList.remove("active"); });
 }
-  const sIcon = document.querySelector(".sun-icon"); const mIcon = document.querySelector(".moon-icon"); if (sIcon && mIcon) { sIcon.style.opacity = isNight() ?
-0 : 1; mIcon.style.opacity = isNight() ? 1 : 0; }
+  // KANLI AY HUD GÜNCELLEMESİ
+  const sIcon = document.querySelector(".sun-icon"); 
+  const mIcon = document.querySelector(".moon-icon:not(.blood-moon-icon)"); 
+  const bmIcon = document.querySelector(".blood-moon-icon");
+  if (sIcon && mIcon && bmIcon) { 
+      if (isNight()) {
+          sIcon.style.opacity = 0; 
+          if (state.currentDay % 4 === 0) { // Her 4. gece kanlı aydır
+              mIcon.style.opacity = 0;
+              bmIcon.style.opacity = 1;
+          } else {
+              mIcon.style.opacity = 1;
+              bmIcon.style.opacity = 0;
+          }
+      } else { 
+          sIcon.style.opacity = 1; 
+          mIcon.style.opacity = 0; 
+          bmIcon.style.opacity = 0;
+      } 
+  }
   
   const scoreEl = document.getElementById("scoreText");
 if (scoreEl) scoreEl.textContent = String(Math.floor(state.score));
@@ -372,6 +396,9 @@ function updatePet(dt) {
       } else {
           state.pet.isSitting = true;
       }
+      
+      // KANLI AY'DA KÖPEK 2 KAT HIZLI REAKSİYON VERİR
+      let cooldownMultiplier = state.bloodMoonActive ? 0.5 : 1.0;
 
       if (!state.pet.barkCooldown) state.pet.barkCooldown = 0;
       if (state.pet.barkCooldown > 0) state.pet.barkCooldown -= dt;
@@ -381,7 +408,7 @@ function updatePet(dt) {
           if (closeEnemy) {
               state.floatingTexts.push({ x: state.pet.x, y: state.pet.y - 25, text: "WOOF! WOOF!", life: 1.2, color: "#ffd700" });
               playSound(sounds.wood);
-              state.pet.barkCooldown = 4.0;
+              state.pet.barkCooldown = 4.0 * cooldownMultiplier;
           }
       }
 
@@ -394,7 +421,7 @@ function updatePet(dt) {
               if (attackTarget && (!attackTarget.stunTimer || attackTarget.stunTimer <= 0)) {
                   attackTarget.stunTimer = 1.5;
                   state.floatingTexts.push({ x: attackTarget.x, y: attackTarget.y - 20, text: "STUNNED!", life: 1.5, color: "#ff4a4a" });
-                  state.pet.attackCooldown = 10.0;
+                  state.pet.attackCooldown = 10.0 * cooldownMultiplier;
                   state.pet.x = attackTarget.x;
                   state.pet.y = attackTarget.y;
               }
@@ -508,6 +535,45 @@ function update(dt) {
   if (state.status === "MENU" || state.status === "PAUSED") { updateFireAnimation(dt);
 return; }
   if (state.gameOver) { updateDeathAnimation(dt); return; }
+  
+  // YENİ GÜNE GEÇİŞ KONTROLÜ
+  state.dayNightTimer += dt;
+  let calcDay = Math.floor(state.dayNightTimer / CYCLE_SECONDS) + 1;
+  if (calcDay > state.currentDay) { 
+      state.currentDay = calcDay; 
+      state.dayMessageTimer = 3.0;
+  }
+
+  // KANLI AY BAŞLATMA VE BİTİRME KONTROLÜ
+  if (isNight() && state.currentDay % 4 === 0) {
+      if (!state.bloodMoonActive) {
+          state.bloodMoonActive = true;
+          state.bloodMoonMessageTimer = 3.0;
+          playSound(sounds.howl);
+          state.bloodMoonHowlTimer = 15 + Math.random() * 10; // İlk uluma sonrası 15-25 sn bekle
+      }
+  } else {
+      if (state.bloodMoonActive) {
+          state.bloodMoonActive = false;
+          state.survivedBloodMoonMessageTimer = 4.0;
+          // KANLI AY ÖDÜLÜ: +100 ALTIN ODUN
+          let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
+          currentBank += 100;
+          localStorage.setItem("campfireGoldenWood", currentBank);
+          state.sessionGoldenWood += 100;
+          playSound(sounds.wood);
+      }
+  }
+
+  // KANLI AY RASTGELE ULUMA ZAMANLAYICISI
+  if (state.bloodMoonActive) {
+      state.bloodMoonHowlTimer -= dt;
+      if (state.bloodMoonHowlTimer <= 0) {
+          playSound(sounds.howl);
+          state.bloodMoonHowlTimer = 15 + Math.random() * 10; // Tekrar 15-25 sn bekle
+      }
+  }
+
   const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
   const moveY = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
   const len = Math.hypot(moveX, moveY) || 1;
@@ -537,10 +603,6 @@ let fireColRadius = state.fire.r - 8;
 state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.player.r + fireColRadius);
 }
   
-  state.dayNightTimer += dt;
-  let calcDay = Math.floor(state.dayNightTimer / CYCLE_SECONDS) + 1;
-if (calcDay > state.currentDay) { state.currentDay = calcDay; state.dayMessageTimer = 3.0;
-}
   if (state.dayMessageTimer > 0) { state.dayMessageTimer -= dt;
 }
 
@@ -549,13 +611,12 @@ if (Math.random() < 12 * dt) { state.windParticles.push({ x: (canvas.clientWidth
 } if (state.windDuration <= 0) state.windTimer = 40 + Math.random() * 40; } else { state.windTimer -= dt;
 if (state.windTimer <= 0) state.windDuration = 10 + Math.random() * 10; } }
 
-  // === FIRE SHIELD (FIRTINA KORUMASI) ÇARPANLARI ===
   let windDrainMultiplier = 2.0; 
   let rainDrainMultiplier = 2.5; 
   
-  if (currentFireShieldTier >= 1) windDrainMultiplier = 1.3; // Rüzgar etkisi %35 azaldı
-  if (currentFireShieldTier >= 2) rainDrainMultiplier = 1.5; // Yağmur etkisi %40 azaldı
-  if (currentFireShieldTier >= 3) { windDrainMultiplier = 1.0; rainDrainMultiplier = 1.0; } // Tam Bağışıklık
+  if (currentFireShieldTier >= 1) windDrainMultiplier = 1.3; 
+  if (currentFireShieldTier >= 2) rainDrainMultiplier = 1.5; 
+  if (currentFireShieldTier >= 3) { windDrainMultiplier = 1.0; rainDrainMultiplier = 1.0; } 
 
   const fireWasAlive = state.fire.level > 0;
   let fireDrainRate = isNight() ? (1.6 * 1.5) : 1.6;
@@ -570,10 +631,20 @@ if (isMoving) state.energy = Math.max(0, state.energy - dt * 3.8);
 if (dist(state.player, state.fire) < state.player.r + state.fire.r + 34 && state.fire.level > 0) state.energy = Math.min(100, state.energy + dt * 2.2);
 if (state.energy <= 0) state.health -= dt * 5.5;
   if (isNight() && state.fire.level <= 0) state.health -= dt * 14;
-if (isNight()) { const maxEnemies = 3 + Math.floor(state.score / 50);
-if (state.enemies.length < maxEnemies && Math.random() < dt * 0.5) { const angle = Math.random() * Math.PI * 2;
-const spawnDist = Math.max(canvas.clientWidth || 800, canvas.clientHeight || 600) / 2 + 100;
-state.enemies.push({ x: state.player.x + Math.cos(angle) * spawnDist, y: state.player.y + Math.sin(angle) * spawnDist, speed: 55 + Math.random() * 25, baseSpeed: 55 + Math.random() * 25, wobble: Math.random() * Math.PI * 2 });
+if (isNight()) { 
+    // KANLI AY İSE DÜŞMAN SAYISI 2 KATINA ÇIKAR
+    let bmMultiplier = state.bloodMoonActive ? 2 : 1;
+    const maxEnemies = (3 + Math.floor(state.score / 50)) * bmMultiplier;
+    
+    if (state.enemies.length < maxEnemies && Math.random() < dt * 0.5) { 
+        const angle = Math.random() * Math.PI * 2;
+        const spawnDist = Math.max(canvas.clientWidth || 800, canvas.clientHeight || 600) / 2 + 100;
+        
+        // KANLI AY İSE DÜŞMAN HIZI %30 ARTAR
+        let speedMult = state.bloodMoonActive ? 1.3 : 1.0;
+        let finalSpeed = (55 + Math.random() * 25) * speedMult;
+        
+        state.enemies.push({ x: state.player.x + Math.cos(angle) * spawnDist, y: state.player.y + Math.sin(angle) * spawnDist, speed: finalSpeed, baseSpeed: finalSpeed, wobble: Math.random() * Math.PI * 2 });
 } } else { state.enemies = []; }
 
   const safeRadius = (state.fire.level / 100 * 180) + 30;
@@ -615,6 +686,7 @@ for (let i = state.enemies.length - 1; i >= 0; i--) {
     state.health = 0;
 if (!state.gameOver) {
       state.gameOver = true; state.deathAnimDone = false; anim.deathFrame = 0; anim.deathTimer = 0;
+      state.bloodMoonActive = false; // Oyuncu ölünce Kanlı Ay'ı kapat
 controls.up = controls.down = controls.left = controls.right = false; stopAudio();
       if (dieSprite.complete) configureDeathClip();
       
@@ -650,12 +722,20 @@ if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStor
     }
 
     if (isNight()) {
-      if (sounds.night.paused) sounds.night.play().catch(()=>{});
+      if (state.bloodMoonActive) {
+          if (sounds.bloodmoon.paused) sounds.bloodmoon.play().catch(()=>{});
+          if (!sounds.night.paused) sounds.night.pause();
+          sounds.bloodmoon.volume = 0.6;
+      } else {
+          if (sounds.night.paused) sounds.night.play().catch(()=>{});
+          if (!sounds.bloodmoon.paused) sounds.bloodmoon.pause();
+          sounds.night.volume = 0.5;
+      }
       if (!sounds.day.paused) sounds.day.pause();
-      sounds.night.volume = 0.5;
     } else {
       if (sounds.day.paused) sounds.day.play().catch(()=>{});
       if (!sounds.night.paused) sounds.night.pause();
+      if (!sounds.bloodmoon.paused) sounds.bloodmoon.pause();
       sounds.day.volume = 0.5;
     }
 
@@ -705,15 +785,13 @@ function drawCampfireBase() {
   ctx.ellipse(fx, fy, 22, 12, 0, 0, Math.PI * 2); 
   ctx.fill(); 
   
-  // === FIRE SHIELD LEVEL 1 (WINDBREAK STONES) GÖRSELİ ===
   if (currentFireShieldTier >= 1) {
       ctx.save();
       ctx.fillStyle = "#6e6e6e";
       ctx.strokeStyle = "#222";
       ctx.lineWidth = 1;
-      // Ateşin solundan sağına üst tarafa rüzgar kesici taşlar dizer
       for(let i = 0; i < 5; i++) {
-          let angle = Math.PI + (i * Math.PI/4); // 180 ile 360 derece arası
+          let angle = Math.PI + (i * Math.PI/4); 
           let sx = fx + Math.cos(angle) * 19;
           let sy = fy + Math.sin(angle) * 10 - 2;
           ctx.beginPath();
@@ -730,7 +808,18 @@ function drawCampfireBase() {
 }
 function drawSmoke() { state.smokeParticles.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life * 0.6); ctx.fillStyle = "#a8b0b8"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
 }
-function drawSparks() { state.sparks.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = "#ffb300"; ctx.shadowColor = "#ff4500"; ctx.shadowBlur = 6; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+function drawSparks() { 
+    state.sparks.forEach(p => { 
+        ctx.save(); 
+        ctx.globalAlpha = Math.max(0, p.life); 
+        ctx.fillStyle = "#ffb300"; 
+        ctx.shadowColor = "#ff4500"; 
+        ctx.shadowBlur = 6; 
+        ctx.beginPath(); 
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); 
+        ctx.fill(); 
+        ctx.restore(); 
+    });
 }
 function drawFloatingTexts() { state.floatingTexts.forEach(ft => { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, ft.life)); ctx.fillStyle = ft.color || "#ffffff"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "#000000"; ctx.shadowBlur = 4; ctx.fillText(ft.text, ft.x, ft.y); ctx.restore(); });
 }
@@ -814,8 +903,6 @@ function drawFireSprite() {
   
   ctx.drawImage(fireSprite, sx, sy, frameWidth, frameHeight, state.fire.x - 32, state.fire.y - 32, 64, 64);
   
-  // === FIRE SHIELD LEVEL 2 (TREATED WOOD) GÖRSELİ ===
-  // Yağmur yağarken ateşin etrafına kimyasal camgöbeği bir parlama ekler
   if (currentFireShieldTier >= 2 && state.rainDuration > 0) {
       ctx.save();
       ctx.globalCompositeOperation = "screen";
@@ -920,15 +1007,25 @@ const h = (canvas.clientHeight || 600) + 10; ctx.clearRect(-5, -5, w, h);
 state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false));
   if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
   drawTent(); drawCampfireBase(); drawFireSprite(); drawSparks(); drawSmoke();
-const darkFactor = nightBlend();
-  if (darkFactor > 0) { ctx.save(); ctx.fillStyle = `rgba(8, 16, 34, ${0.2 + darkFactor * 0.65})`;
-ctx.fillRect(-5, -5, w, h); drawFireLight(); ctx.restore(); drawEnemies(); } else { drawFireLight(); }
+  
+  const darkFactor = nightBlend();
+  if (darkFactor > 0) { 
+      ctx.save(); 
+      // KANLI AY GECESİ İSE EKRANI KIRMIZI SİS KAPLAR
+      if (state.currentDay % 4 === 0) {
+          ctx.fillStyle = `rgba(40, 0, 0, ${0.4 + darkFactor * 0.5})`;
+      } else {
+          ctx.fillStyle = `rgba(8, 16, 34, ${0.2 + darkFactor * 0.65})`;
+      }
+      ctx.fillRect(-5, -5, w, h); 
+      drawFireLight(); 
+      ctx.restore(); 
+      drawEnemies(); 
+  } else { drawFireLight(); }
 
-  // === FIRE SHIELD LEVEL 3 (GUARDIAN AURA) GÖRSELİ ===
   if (currentFireShieldTier >= 3 && (state.windDuration > 0 || state.rainDuration > 0)) {
       ctx.save();
       ctx.beginPath();
-      // Çadırı ve ateşi kapsayan hafif oval dev bir altın kubbe
       ctx.ellipse(state.fire.x, state.fire.y - 30, 95, 65, 0, Math.PI, 0);
       ctx.lineWidth = 3;
       ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
@@ -940,11 +1037,43 @@ ctx.fillRect(-5, -5, w, h); drawFireLight(); ctx.restore(); drawEnemies(); } els
 
   drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); drawPlayerSprite(); drawFloatingTexts();
 const cw = canvas.clientWidth || 800; const ch = canvas.clientHeight || 600;
+
+  // GÜN MESAJI
   if (state.dayMessageTimer > 0) { ctx.save();
 ctx.globalAlpha = Math.min(1, state.dayMessageTimer); ctx.fillStyle = "#ffd700"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "#000";
 ctx.shadowBlur = 10; ctx.fillText("DAY " + state.currentDay, cw / 2, ch / 4); ctx.font = "bold 20px Arial";
 ctx.fillStyle = "#fff"; ctx.fillText("SURVIVED", cw / 2, ch / 4 + 30); ctx.restore();
 }
+
+  // KANLI AY BAŞLANGIÇ MESAJI
+  if (state.bloodMoonMessageTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, state.bloodMoonMessageTimer);
+      ctx.fillStyle = "#ff0000";
+      ctx.font = "bold 25px Arial";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 10;
+      ctx.fillText("THE BLOOD MOON RISES...", cw / 2, ch / 4 + 75);
+      ctx.restore();
+  }
+  
+  // KANLI AY ÖDÜL MESAJI
+  if (state.survivedBloodMoonMessageTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, state.survivedBloodMoonMessageTimer);
+      ctx.fillStyle = "#ffd700";
+      ctx.font = "bold 22px Arial";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 10;
+      ctx.fillText("BLOOD MOON SURVIVED!", cw / 2, ch / 4 + 75);
+      ctx.fillStyle = "#4ade80";
+      ctx.font = "bold 18px Arial";
+      ctx.fillText("+100 GOLDEN WOOD", cw / 2, ch / 4 + 105);
+      ctx.restore();
+  }
+
   if (state.damageFlash > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${state.damageFlash * 0.4})`; ctx.fillRect(-5, -5, w, h);
 }
 }
@@ -974,7 +1103,11 @@ state.floatingTexts = []; state.playerTrails = []; state.windParticles = []; sta
     state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0;
 state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; state.blueMushroomTimer = 30 + Math.random() * 30; state.superModeTimer = 0; state.raccoonSpawnTimer = 15;
 state.windTimer = 20 + Math.random() * 30; state.windDuration = 0; state.rainTimer = 30 + Math.random() * 40; state.rainDuration = 0;
-controls.up = false; controls.down = false; controls.left = false; controls.right = false;
+    
+    // KANLI AY SIFIRLAMA
+    state.bloodMoonActive = false; state.bloodMoonMessageTimer = 0; state.survivedBloodMoonMessageTimer = 0; state.bloodMoonHowlTimer = 0;
+
+    controls.up = false; controls.down = false; controls.left = false; controls.right = false;
     seedWoods(); updateHud();
 }
 
@@ -1234,7 +1367,6 @@ window.buyPetUpgrade = function() {
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
-// YENİ: Fire Shield Satın Alma Fonksiyonu
 window.buyFireShieldUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentFireShieldTier >= UPGRADE_DATA.fireShield.length) return;
