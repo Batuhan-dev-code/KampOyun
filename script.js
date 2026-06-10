@@ -602,10 +602,11 @@ let fireColRadius = state.fire.r - 8;
   if (dFire < state.player.r + fireColRadius) { let angle = Math.atan2(state.player.y - state.fire.y, state.player.x - state.fire.x);
 state.player.x = state.fire.x + Math.cos(angle) * (state.player.r + fireColRadius); state.player.y = state.fire.y + Math.sin(angle) * (state.player.r + fireColRadius);
 }
-  
-  if (state.dayMessageTimer > 0) { state.dayMessageTimer -= dt;
-}
-
+// === KANLI AY MESAJ SÜRELERİNİ GERİYE SAYDIRMA ===
+if (state.dayMessageTimer > 0) state.dayMessageTimer -= dt;
+if (state.bloodMoonMessageTimer > 0) state.bloodMoonMessageTimer -= dt;
+if (state.survivedBloodMoonMessageTimer > 0) state.survivedBloodMoonMessageTimer -= dt;  
+ 
   if (state.rainDuration <= 0) { if (state.windDuration > 0) { state.windDuration -= dt;
 if (Math.random() < 12 * dt) { state.windParticles.push({ x: (canvas.clientWidth || 800) + 50, y: Math.random() * (canvas.clientHeight || 600), length: 40 + Math.random() * 60, speed: 500 + Math.random() * 300 });
 } if (state.windDuration <= 0) state.windTimer = 40 + Math.random() * 40; } else { state.windTimer -= dt;
@@ -1045,34 +1046,34 @@ ctx.shadowBlur = 10; ctx.fillText("DAY " + state.currentDay, cw / 2, ch / 4); ct
 ctx.fillStyle = "#fff"; ctx.fillText("SURVIVED", cw / 2, ch / 4 + 30); ctx.restore();
 }
 
-  // KANLI AY BAŞLANGIÇ MESAJI
-  if (state.bloodMoonMessageTimer > 0) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, state.bloodMoonMessageTimer);
-      ctx.fillStyle = "#ff0000";
-      ctx.font = "bold 25px Arial";
-      ctx.textAlign = "center";
-      ctx.shadowColor = "#000";
-      ctx.shadowBlur = 10;
-      ctx.fillText("THE BLOOD MOON RISES...", cw / 2, ch / 4 + 75);
-      ctx.restore();
-  }
-  
-  // KANLI AY ÖDÜL MESAJI
-  if (state.survivedBloodMoonMessageTimer > 0) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, state.survivedBloodMoonMessageTimer);
-      ctx.fillStyle = "#ffd700";
-      ctx.font = "bold 22px Arial";
-      ctx.textAlign = "center";
-      ctx.shadowColor = "#000";
-      ctx.shadowBlur = 10;
-      ctx.fillText("BLOOD MOON SURVIVED!", cw / 2, ch / 4 + 75);
-      ctx.fillStyle = "#4ade80";
-      ctx.font = "bold 18px Arial";
-      ctx.fillText("+100 GOLDEN WOOD", cw / 2, ch / 4 + 105);
-      ctx.restore();
-  }
+// KANLI AY BAŞLANGIÇ MESAJI (EKRANIN EN ÜSTÜNE TAŞINDI VE GÜVENLİ ALPHA EKLENDİ)
+if (state.bloodMoonMessageTimer > 0) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, state.bloodMoonMessageTimer));
+  ctx.fillStyle = "#ff0000";
+  ctx.font = "bold 25px Arial";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 10;
+  ctx.fillText("THE BLOOD MOON RISES...", cw / 2, 60); // Koordinat Y: 60 olarak yukarı sabitlendi
+  ctx.restore();
+}
+
+// KANLI AY ÖDÜL MESAJI (EKRANIN EN ÜSTÜNE TAŞINDI VE GÜVENLİ ALPHA EKLENDİ)
+if (state.survivedBloodMoonMessageTimer > 0) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, state.survivedBloodMoonMessageTimer));
+  ctx.fillStyle = "#ffd700";
+  ctx.font = "bold 22px Arial";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 10;
+  ctx.fillText("BLOOD MOON SURVIVED!", cw / 2, 60); // Koordinat Y: 60 olarak yukarı sabitlendi
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "bold 18px Arial";
+  ctx.fillText("+100 GOLDEN WOOD", cw / 2, 90); // Koordinat Y: 90 olarak altına sabitlendi
+  ctx.restore();
+}
 
   if (state.damageFlash > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${state.damageFlash * 0.4})`; ctx.fillRect(-5, -5, w, h);
 }
