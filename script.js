@@ -632,53 +632,179 @@ if (isMoving) state.energy = Math.max(0, state.energy - dt * 3.8);
 if (dist(state.player, state.fire) < state.player.r + state.fire.r + 34 && state.fire.level > 0) state.energy = Math.min(100, state.energy + dt * 2.2);
 if (state.energy <= 0) state.health -= dt * 5.5;
   if (isNight() && state.fire.level <= 0) state.health -= dt * 14;
-if (isNight()) { 
-    // KANLI AY İSE DÜŞMAN SAYISI 2 KATINA ÇIKAR
+  if (isNight()) {
     let bmMultiplier = state.bloodMoonActive ? 2 : 1;
     const maxEnemies = (3 + Math.floor(state.score / 50)) * bmMultiplier;
     
-    if (state.enemies.length < maxEnemies && Math.random() < dt * 0.5) { 
+    if (state.enemies.length < maxEnemies && Math.random() < dt * 0.5) {
         const angle = Math.random() * Math.PI * 2;
         const spawnDist = Math.max(canvas.clientWidth || 800, canvas.clientHeight || 600) / 2 + 100;
-        
-        // KANLI AY İSE DÜŞMAN HIZI %30 ARTAR
         let speedMult = state.bloodMoonActive ? 1.3 : 1.0;
         let finalSpeed = (55 + Math.random() * 25) * speedMult;
         
-        state.enemies.push({ x: state.player.x + Math.cos(angle) * spawnDist, y: state.player.y + Math.sin(angle) * spawnDist, speed: finalSpeed, baseSpeed: finalSpeed, wobble: Math.random() * Math.PI * 2 });
-} } else { state.enemies = []; }
+        state.enemies.push({
+            x: state.player.x + Math.cos(angle) * spawnDist,
+            y: state.player.y + Math.sin(angle) * spawnDist,
+            speed: finalSpeed,
+            baseSpeed: finalSpeed,
+            wobble: Math.random() * Math.PI * 2,
+            type: "normal",
+            r: 14
+        });
+    }
+    
+    // YENİ: KANLI AY İÇİN "FIRE EATER" BOSS SPAWN MANTIĞI
+    if (state.bloodMoonActive) {
+        if (!state.fireEaterSpawnTimer) {
+            state.fireEaterSpawnTimer = 10 + Math.random() * 10;
+        }
+        state.fireEaterSpawnTimer -= dt;
+        
+        let activeEaters = state.enemies.filter(e => e.type === "fire_eater").length;
+        
+        if (state.fireEaterSpawnTimer <= 0 && activeEaters < 1) { // Gecede aynı anda maks 1 tane
+            const angle = Math.random() * Math.PI * 2;
+            const spawnDist = Math.max(canvas.clientWidth || 800, canvas.clientHeight || 600) / 2 + 150;
+            
+            state.enemies.push({
+                x: state.fire.x + Math.cos(angle) * spawnDist,
+                y: state.fire.y + Math.sin(angle) * spawnDist,
+                speed: 30,
+                baseSpeed: 30,
+                wobble: 0,
+                type: "fire_eater",
+                r: 24
+            });
+            
+            state.fireEaterSpawnTimer = 25 + Math.random() * 15;
+        }
+    }
+} else {
+    state.enemies = [];
+}
 
   const safeRadius = (state.fire.level / 100 * 180) + 30;
-for (let i = state.enemies.length - 1; i >= 0; i--) {
+  for (let i = state.enemies.length - 1; i >= 0; i--) {
     let enemy = state.enemies[i];
     
-    if (!enemy.stunTimer) enemy.stunTimer = 0;
+    if (!enemy.stunTimer) {
+        enemy.stunTimer = 0;
+    }
     if (enemy.stunTimer > 0) {
         enemy.stunTimer -= dt;
         continue;
     }
+    
+    if (enemy.type === "fire_eater") {
+        // YENİ: FIRE EATER SADECE ATEŞE YÜRÜR
+        let dx = state.fire.x - enemy.x;
+        let dy = state.fire.y - enemy.y;
+        let fDist = Math.hypot(dx, dy);
+        
+        if (fDist > 0) {
+            dx /= fDist;
+            dy /= fDist;
+        }
+        
+        if (state.superModeTimer > 0 && dist(enemy, state.player) < 150) {
+            dx = -(state.player.x - enemy.x);
+            dy = -(state.player.y - enemy.y);
+        } // Super moddan kaçar
+        
+        enemy.x += dx * enemy.speed * dt;
+        enemy.y += dy * enemy.speed * dt;
+        
+        // ATEŞE ULAŞIRSA (Felaket Senaryosu)
+        if (fDist < state.fire.r + enemy.r && state.fire.level > 0) {
+            state.fire.level = Math.max(0, state.fire.level - 40);
+            state.floatingTexts.push({
+                x: state.fire.x,
+                y: state.fire.y - 40,
+                text: "FIRE DRAINED!",
+                life: 2.0,
+                color: "#9c27b0"
+            });
+            spawnSmoke(state.fire.x, state.fire.y, 25);
+            state.enemies.splice(i, 1);
+            continue;
+        }
+    } else {
+        // NORMAL DÜŞMAN OYUNCUYA YÜRÜR
+        enemy.wobble += dt * 4;
+        let dx = state.player.x - enemy.x + Math.cos(enemy.wobble) * 20;
+        let dy = state.player.y - enemy.y + Math.sin(enemy.wobble) * 20;
+        let pDist = Math.hypot(dx, dy);
+        
+        if (pDist > 0) {
+            dx /= pDist;
+            dy /= pDist;
+        }
+        
+        if (state.superModeTimer > 0) {
+            dx = -dx;
+            dy = -dy;
+            enemy.speed = 90;
+        } else {
+            enemy.speed = enemy.baseSpeed;
+        }
+        
+        let nextX = enemy.x + dx * enemy.speed * dt;
+        let nextY = enemy.y + dy * enemy.speed * dt;
+        let eTentDist = dist({ x: nextX, y: nextY }, state.tent);
+        
+        if (eTentDist < 14 + state.tent.r) {
+            let tAngle = Math.atan2(enemy.y - state.tent.y, enemy.x - state.tent.x);
+            nextX = state.tent.x + Math.cos(tAngle) * (14 + state.tent.r);
+            nextY = state.tent.y + Math.sin(tAngle) * (14 + state.tent.r);
+        }
+        
+        let fDist = dist({ x: nextX, y: nextY }, state.fire);
+        const safeRadius = (state.fire.level / 100 * 180) + 30;
+        
+        if (fDist < safeRadius && state.fire.level > 0) {
+            let fAngle = Math.atan2(enemy.y - state.fire.y, enemy.x - state.fire.x);
+            nextX = state.fire.x + Math.cos(fAngle) * safeRadius;
+            nextY = state.fire.y + Math.sin(fAngle) * safeRadius;
+        }
+        
+        enemy.x = nextX;
+        enemy.y = nextY;
+    }
 
-    enemy.wobble += dt * 4; let dx = state.player.x - enemy.x + Math.cos(enemy.wobble) * 20;
-    let dy = state.player.y - enemy.y + Math.sin(enemy.wobble) * 20; let pDist = Math.hypot(dx, dy);
-    if (pDist > 0) { dx /= pDist; dy /= pDist; }
-    if (state.superModeTimer > 0) { dx = -dx; dy = -dy; enemy.speed = 90;
-    } else { enemy.speed = enemy.baseSpeed; }
-    let nextX = enemy.x + dx * enemy.speed * dt;
-    let nextY = enemy.y + dy * enemy.speed * dt;
-    let eTentDist = dist({ x: nextX, y: nextY }, state.tent);
-    if (eTentDist < 14 + state.tent.r) { let tAngle = Math.atan2(enemy.y - state.tent.y, enemy.x - state.tent.x);
-    nextX = state.tent.x + Math.cos(tAngle) * (14 + state.tent.r); nextY = state.tent.y + Math.sin(tAngle) * (14 + state.tent.r);
+    // ORTAK ÇARPIŞMA (OYUNCU İLE TEMAS)
+    let colRadius = enemy.type === "fire_eater" ? 28 : 20;
+    
+    if (dist(enemy, state.player) < colRadius) {
+        if (state.superModeTimer > 0) {
+            state.score += (enemy.type === "fire_eater" ? 150 : 50);
+            state.floatingTexts.push({
+                x: enemy.x,
+                y: enemy.y - 10,
+                text: (enemy.type === "fire_eater" ? "+150" : "+50"),
+                life: 1.5,
+                color: "#ffd700"
+            });
+            spawnSparks(enemy.x, enemy.y, 15);
+            state.enemies.splice(i, 1);
+        } else {
+            if (enemy.type === "fire_eater") {
+                state.health -= 40; // Body-block (Can feda etme) hasarı
+                state.floatingTexts.push({
+                    x: state.player.x,
+                    y: state.player.y - 30,
+                    text: "DEFENDED!",
+                    life: 1.5,
+                    color: "#4ea9ff"
+                });
+                spawnSmoke(enemy.x, enemy.y, 10);
+                state.enemies.splice(i, 1);
+            } else {
+                state.health -= dt * 25;
+            }
+            state.damageFlash = 1;
+        }
     }
-    let fDist = dist({ x: nextX, y: nextY }, state.fire);
-    if (fDist < safeRadius && state.fire.level > 0) { let fAngle = Math.atan2(enemy.y - state.fire.y, enemy.x - state.fire.x);
-    nextX = state.fire.x + Math.cos(fAngle) * safeRadius; nextY = state.fire.y + Math.sin(fAngle) * safeRadius;
-    }
-    enemy.x = nextX; enemy.y = nextY;
-    if (dist(enemy, state.player) < 20) { if (state.superModeTimer > 0) { state.score += 50;
-    state.floatingTexts.push({ x: enemy.x, y: enemy.y - 10, text: "+50", life: 1.5, color: "#ffd700" }); spawnSparks(enemy.x, enemy.y, 15); state.enemies.splice(i, 1);
-    } else { state.health -= dt * 25; state.damageFlash = 1;
-    } }
-  }
+}
 
   if (state.damageFlash > 0) { state.damageFlash -= dt * 2.5;
   if (state.damageFlash < 0) state.damageFlash = 0; }
@@ -884,14 +1010,57 @@ ctx.moveTo(tx, ty - 60); ctx.lineTo(tx + 65, ty + 35); ctx.lineTo(tx + 25, ty + 
 ctx.fill(); ctx.restore();
 }
 
-function drawEnemies() {
-  state.enemies.forEach(enemy => {
-    ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#ff1a1a"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12;
-    let angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x); let ex = Math.cos(angle) * 5; let ey = Math.sin(angle) * 5;
-    ctx.beginPath(); ctx.arc(enemy.x + ex + Math.cos(angle - Math.PI/2)*5, enemy.y + ey + Math.sin(angle - Math.PI/2)*5, 3.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(enemy.x + ex + Math.cos(angle + Math.PI/2)*5, enemy.y + ey + Math.sin(angle + 
-Math.PI/2)*5, 3.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
-  });
+function drawEnemies() { 
+  state.enemies.forEach(enemy => { 
+      ctx.save(); 
+      
+      if (enemy.type === "fire_eater") {
+          // YENİ BOSS: Mor/Siyah Dev Silüet
+          ctx.fillStyle = "rgba(20, 0, 30, 0.9)";
+          ctx.shadowColor = "#9c27b0";
+          ctx.shadowBlur = 15;
+          
+          ctx.beginPath();
+          ctx.arc(enemy.x, enemy.y, enemy.r, 0, Math.PI * 2);
+          ctx.fill();
+          
+          let angle = Math.atan2(state.fire.y - enemy.y, state.fire.x - enemy.x);
+          let ex = Math.cos(angle) * 10;
+          let ey = Math.sin(angle) * 10;
+          
+          ctx.fillStyle = "#e040fb";
+          ctx.shadowColor = "#e040fb";
+          ctx.shadowBlur = 20;
+          
+          ctx.beginPath();
+          ctx.arc(enemy.x + ex, enemy.y + ey, 6, 0, Math.PI*2);
+          ctx.fill(); // Tek göz
+      } else {
+          // NORMAL DÜŞMAN: Kırmızı Gözler
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          ctx.beginPath();
+          ctx.arc(enemy.x, enemy.y, 14, 0, Math.PI * 2);
+          ctx.fill(); 
+          
+          ctx.fillStyle = "#ff1a1a";
+          ctx.shadowColor = "#ff0000";
+          ctx.shadowBlur = 12; 
+          
+          let angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+          let ex = Math.cos(angle) * 5;
+          let ey = Math.sin(angle) * 5; 
+          
+          ctx.beginPath();
+          ctx.arc(enemy.x + ex + Math.cos(angle - Math.PI/2)*5, enemy.y + ey + Math.sin(angle - Math.PI/2)*5, 3.5, 0, Math.PI*2);
+          ctx.fill(); 
+          
+          ctx.beginPath();
+          ctx.arc(enemy.x + ex + Math.cos(angle + Math.PI/2)*5, enemy.y + ey + Math.sin(angle + Math.PI/2)*5, 3.5, 0, Math.PI*2);
+          ctx.fill(); 
+      }
+      
+      ctx.restore(); 
+  }); 
 }
 
 function drawFireSprite() {
