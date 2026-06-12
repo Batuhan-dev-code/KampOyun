@@ -1,6 +1,6 @@
 // ====== GEÇİCİ TEST KODU ======
 // Altın hilesini açmak için aşağıdaki satırın başındaki "//" işaretlerini sil.
-// localStorage.setItem("campfireGoldenWood", 5000);
+localStorage.setItem("campfireGoldenWood", 5000);
 // =======================================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -10,6 +10,21 @@ const tintCanvas = document.createElement("canvas");
 const tintCtx = tintCanvas.getContext("2d"); 
 
 const hudEl = document.querySelector(".hud");
+
+const tentStyle = document.createElement('style');
+tentStyle.innerHTML = `
+  #tentMenu { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.85); border: 2px solid #a0522d; border-radius: 12px; padding: 12px; display: flex; gap: 20px; pointer-events: auto; z-index: 100; transition: opacity 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  .tent-item { color: white; font-size: 18px; font-weight: bold; cursor: pointer; text-align: center; padding: 8px 15px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: background 0.2s; user-select: none; }
+  .tent-item:active { background: rgba(255,255,255,0.3); }
+  .hidden-fade { opacity: 0; pointer-events: none !important; }
+`;
+document.head.appendChild(tentStyle);
+
+const tentMenu = document.createElement("div");
+tentMenu.id = "tentMenu";
+tentMenu.className = "hidden-fade";
+tentMenu.addEventListener("pointerdown", e => e.stopPropagation());
+document.querySelector(".game-shell").appendChild(tentMenu);
 
 if (!document.getElementById("pauseUI")) {
     const pUI = document.createElement("div");
@@ -50,7 +65,6 @@ sounds.fire.loop = true; sounds.day.loop = true; sounds.night.loop = true;
 sounds.wind.loop = true; sounds.rain.loop = true; sounds.bloodmoon.loop = true;
 let audioStarted = false;
 
-// OYUN MOTORU DEĞİŞKENLERİ
 const state = {
   status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
@@ -61,17 +75,23 @@ const state = {
   
   isMuted: localStorage.getItem("campfireMuted") === "true",
   bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0, fireEaterSpawnTimer: 0,
-  bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
-  // ... (üst kısımlar aynı kalacak)
-  damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
+  bagWood: 0, score: 0, health: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
   
-  // YENİ: Yiyecek deposu, elde tutulan eşya, elmalar ve gölet
   inventory: { apple: 0, mushroom: 0, fish: 0 },
   equippedFood: null,
   apples: [],
-  pond: { x: 0, y: 0, r: 55, fishProgress: 0 }
+  pond: { x: 0, y: 0, r: 55, fishProgress: 0 },
+  cookTimer: 0
 };
-  
+
+window.equipFood = function(type) {
+    if (state.inventory[type] > 0) {
+        state.equippedFood = state.equippedFood === type ? null : type; 
+        state.cookTimer = 0; 
+        playSound(sounds.wood);
+    }
+};
+
 function initAudio() {
   if (audioStarted) return;
   audioStarted = true;
@@ -109,7 +129,6 @@ style.innerHTML = `
   .bar-container { width: 55px; height: 12px; background: rgba(0, 0, 0, 0.7); border: 2px solid #4a5568; border-radius: 6px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
   .bar-fill { height: 100%; transition: width 0.2s ease-out; }
   .health-fill { background: linear-gradient(90deg, #c53030, #fc8181); }
-  .energy-fill { background: linear-gradient(90deg, #2b6cb0, #63b3ed); }
   .fire-fill { background: linear-gradient(90deg, #ff4500, #ff8c00); }
   .wood-container { display: flex; align-items: center; justify-content: center; gap: 3px; background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 6px; border: 1px solid #4a5568; min-width: 185px; }
   .wood-label { color: #fff; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 2px #000; margin-right: 6px; }
@@ -167,7 +186,6 @@ muteBtnWrap.addEventListener("pointerdown", (e) => {
     Object.values(sounds).forEach(snd => snd.muted = state.isMuted); 
     muteBtnWrap.innerHTML = state.isMuted ? "🔇" : "🔊"; 
 });
-
 topRow.appendChild(muteBtnWrap);
 
 const barsGroup = document.createElement("div"); barsGroup.className = "bars-group";
@@ -201,15 +219,14 @@ function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y); return isNaN(d) 
 function randomWood() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const isGold = Math.random() < 0.15; for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30) return wood; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; }
 function randomMushroom() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; for (let i = 0; i < 20; i += 1) { const mushroom = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; if (dist(mushroom, state.fire) > state.fire.r + 80 && dist(mushroom, state.player) > state.player.r + 30) return mushroom; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; }
 function randomApple() { 
-  const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; 
+  const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
   for (let i = 0; i < 20; i += 1) { 
-      const apple = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 }; 
-      if (dist(apple, state.fire) > state.fire.r + 80 && dist(apple, state.player) > state.player.r + 30) return apple; 
+      const apple = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 };
+      if (dist(apple, state.fire) > state.fire.r + 80 && dist(apple, state.player) > state.player.r + 30) return apple;
   } 
-  return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 }; 
+  return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 };
 }
-function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); state.apples = []; 
-  for (let i = 0; i < 3; i += 1) state.apples.push(randomApple());}
+function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); state.apples = []; for (let i = 0; i < 3; i += 1) state.apples.push(randomApple());}
 function isNight() { return (state.dayNightTimer % CYCLE_SECONDS) >= DAY_SECONDS; }
 
 function updateHud() {
@@ -224,6 +241,29 @@ function updateHud() {
   const scoreEl = document.getElementById("scoreText"); if (scoreEl) scoreEl.textContent = String(Math.floor(state.score));
   const dayEl = document.getElementById("dayText"); if (dayEl) dayEl.textContent = state.currentDay;
   const goldEl = document.getElementById("goldenWoodText"); if (goldEl) goldEl.textContent = state.sessionGoldenWood;
+  
+  const tMenu = document.getElementById("tentMenu");
+  if (tMenu) {
+      if (dist(state.player, state.tent) < state.tent.r + 40) {
+          tMenu.classList.remove("hidden-fade"); 
+          tMenu.innerHTML = `
+              <div class="tent-item" onpointerdown="equipFood('apple')">🍎 ${state.inventory.apple}</div>
+              <div class="tent-item" onpointerdown="equipFood('mushroom')">🍄 ${state.inventory.mushroom}</div>
+              <div class="tent-item" onpointerdown="equipFood('fish')">🐟 ${state.inventory.fish}</div>
+          `;
+      } else {
+          tMenu.classList.add("hidden-fade");
+      }
+  }
+
+  const mBtn = document.getElementById("mobileActionBtn");
+  if (mBtn) {
+      if (state.equippedFood) {
+          mBtn.innerHTML = "EAT"; mBtn.style.color = "#4ade80"; 
+      } else {
+          mBtn.innerHTML = "FEED FIRE"; mBtn.style.color = "#fff"; 
+      }
+  }
 }
 
 function clampPlayer() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const half = getPlayerDrawSize() * 0.5; state.player.x = Math.min(w - half, Math.max(half, state.player.x || half)); state.player.y = Math.min(h - half, Math.max(half, state.player.y || half)); }
@@ -233,35 +273,33 @@ function collectItems() {
   state.woods = state.woods.filter((wood) => { if (dist(state.player, wood) <= state.player.r + wood.r) { if (wood.isGolden) goldenCollected++; else wCollected++; playSound(sounds.wood); return false; } return true; });
   let totalWood = wCollected + (goldenCollected * 5);
   if (totalWood > 0) { const spaceLeft = state.maxWood - state.bagWood; const actualCollected = Math.min(totalWood, spaceLeft); state.bagWood += actualCollected; state.score += (wCollected * 5) + (goldenCollected * 50); state.pendingWoodRespawns += (wCollected + goldenCollected); if (goldenCollected > 0) { state.sessionGoldenWood += goldenCollected; state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" }); } }
-// MANTARLARI DEPOYA ALMA (Anında can doldurmaz)
-state.mushrooms = state.mushrooms.filter((m) => { 
-  if (dist(state.player, m) <= state.player.r + m.r) { 
-      state.inventory.mushroom++; 
-      playSound(sounds.wood); 
-      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
-      state.pendingMushroomRespawns++;
-      return false; 
-  } 
-  return true; 
-});
-
-// ELMALARI DEPOYA ALMA
-state.apples = state.apples.filter((a) => { 
-  if (dist(state.player, a) <= state.player.r + a.r) { 
-      state.inventory.apple++; 
-      playSound(sounds.wood); 
-      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
-      return false; 
-  } 
-  return true; 
-});
-
-// Mavi mantar süper güç vermeye devam eder
-if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { 
-  state.superModeTimer = 8.0; playSound(sounds.feed); state.score += 100; 
-  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER!", life: 2.0, color: "#00ffff" }); 
-  state.blueMushroom = null; state.blueMushroomTimer = 40 + Math.random() * 40; 
-}  
+  
+  state.mushrooms = state.mushrooms.filter((m) => { 
+      if (dist(state.player, m) <= state.player.r + m.r) { 
+          state.inventory.mushroom++; 
+          playSound(sounds.wood); 
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
+          state.pendingMushroomRespawns++;
+          return false; 
+      } 
+      return true; 
+  });
+  
+  state.apples = state.apples.filter((a) => { 
+      if (dist(state.player, a) <= state.player.r + a.r) { 
+          state.inventory.apple++; 
+          playSound(sounds.wood); 
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
+          return false; 
+      } 
+      return true; 
+  });
+  
+  if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { 
+      state.superModeTimer = 8.0; playSound(sounds.feed); state.score += 100; 
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER!", life: 2.0, color: "#00ffff" }); 
+      state.blueMushroom = null; state.blueMushroomTimer = 40 + Math.random() * 40; 
+  }  
 }
 
 function spawnSmoke(x, y, count) { for (let i = 0; i < count; i++) { state.smokeParticles.push({ x: x + (Math.random() * 20 - 10), y: y + (Math.random() * 10 - 5), vx: (Math.random() * 15 - 7.5), vy: -(15 + Math.random() * 25), life: 1.0, decay: 0.4 + Math.random() * 0.6, r: 8 + Math.random() * 12 }); } }
@@ -272,8 +310,39 @@ function updateFloatingTexts(dt) { for (let i = state.floatingTexts.length - 1; 
 function updateWind(dt) { for (let i = state.windParticles.length - 1; i >= 0; i--) { let wp = state.windParticles[i]; wp.x -= wp.speed * dt; if (wp.x < -150) { state.windParticles.splice(i, 1); } } }
 
 function feedFire() {
+  if (state.gameOver) return;
+
+  if (state.equippedFood) {
+      if (state.equippedFood === "apple") {
+          state.health = Math.min(100, state.health + 10);
+          state.inventory.apple--;
+          state.equippedFood = state.inventory.apple > 0 ? "apple" : null;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+10 HP", life: 1.5, color: "#4ade80" });
+      } else if (state.equippedFood === "mushroom") {
+          state.health = Math.min(100, state.health + 20);
+          state.inventory.mushroom--;
+          state.equippedFood = state.inventory.mushroom > 0 ? "mushroom" : null;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+20 HP", life: 1.5, color: "#4ade80" });
+      } else if (state.equippedFood === "cooked_mushroom") {
+          state.health = Math.min(100, state.health + 40);
+          state.inventory.mushroom--;
+          state.equippedFood = state.inventory.mushroom > 0 ? "mushroom" : null;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+40 HP", life: 1.5, color: "#4ade80" });
+      } else if (state.equippedFood === "fish") {
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NEEDS COOKING!", life: 1.5, color: "#ff4a4a" });
+          return; 
+      } else if (state.equippedFood === "cooked_fish") {
+          state.health = Math.min(100, state.health + 80);
+          state.inventory.fish--;
+          state.equippedFood = state.inventory.fish > 0 ? "fish" : null;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+80 HP", life: 1.5, color: "#4ade80" });
+      }
+      playSound(sounds.feed); updateHud();
+      return; 
+  }
+
   const inRange = dist(state.player, state.fire) < state.player.r + state.fire.r + 20;
-  if (!inRange || state.gameOver || state.bagWood <= 0) return;
+  if (!inRange || state.bagWood <= 0) return;
   if (state.fire.level <= 0) { spawnSmoke(state.fire.x, state.fire.y, 12); }
   if (state.fire.level < 15 && state.fire.level > 0) { state.score += 50; state.floatingTexts.push({ x: state.fire.x, y: state.fire.y - 40, text: "CLOSE CALL! +50", life: 2.0, color: "#ffd700" }); }
   spawnSparks(state.fire.x, state.fire.y, 15);
@@ -431,6 +500,30 @@ function update(dt) {
   state.player.y += ((moveY / len) * state.player.speed * dt) || 0;
   clampPlayer();
 
+  let dPond = dist(state.player, state.pond);
+  if (dPond < state.pond.r + 20 && !isMoving) {
+      state.pond.fishProgress += dt;
+      if (state.pond.fishProgress >= 4.0) {
+          state.inventory.fish++;
+          state.pond.fishProgress = 0;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+      }
+  } else { state.pond.fishProgress = 0; }
+
+  if (!state.cookTimer) state.cookTimer = 0;
+  let dFire = dist(state.player, state.fire);
+  let nearFire = dFire < state.fire.r + 40 && state.fire.level > 0;
+  
+  if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fish")) {
+      state.cookTimer += dt;
+      let reqTime = state.equippedFood === "fish" ? 3.0 : 2.0; 
+      if (state.cookTimer >= reqTime) {
+          state.equippedFood = state.equippedFood === "fish" ? "cooked_fish" : "cooked_mushroom";
+          state.cookTimer = 0;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "COOKED!", life: 1.5, color: "#ff9900" });
+      }
+  } else { state.cookTimer = 0; }
+
   let dTent = dist(state.player, state.tent);
   if (dTent < state.player.r + state.tent.r - 10) { 
       let angle = Math.atan2(state.player.y - state.tent.y, state.player.x - state.tent.x);
@@ -438,7 +531,6 @@ function update(dt) {
       state.player.y = state.tent.y + Math.sin(angle) * (state.player.r + state.tent.r - 10); 
   }
   
-  let dFire = dist(state.player, state.fire);
   let fireColRadius = state.fire.r - 8; 
   if (dFire < state.player.r + fireColRadius) { 
       let angle = Math.atan2(state.player.y - state.fire.y, state.player.x - state.fire.x);
@@ -477,12 +569,11 @@ function update(dt) {
   }
   
   updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt);
-// YENİ: Enerji sistemi kaldırıldı, yorgunluk ve açlık doğrudan Health (Can) üzerinden hesaplanıyor
-state.health -= dt * 0.3; // Temel yaşamsal düşüş (Karakter dururken bile yavaşça acıkır)
-if (isMoving) state.health -= dt * 1.2; // Hareket yorgunluğu (Koşarken can biraz daha hızlı azalır)
-
-if (isNight() && state.fire.level <= 0) state.health -= dt * 14; // Gece ateş sönerse donma hasarı  
   
+  state.health -= dt * 0.3; 
+  if (isMoving) state.health -= dt * 1.2; 
+  if (isNight() && state.fire.level <= 0) state.health -= dt * 14; 
+
   if (isNight()) {
       let bmMultiplier = state.bloodMoonActive ? 2 : 1;
       const maxEnemies = (3 + Math.floor(state.score / 50)) * bmMultiplier;
@@ -749,7 +840,7 @@ function drawMushroom(x, y, isSuper = false) {
 function drawApple(x, y) {
   ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = "#ff1a1a"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#4a2e00"; ctx.fillRect(-1, -8, 2, 4); 
+  ctx.fillStyle = "#4a2e00"; ctx.fillRect(-1, -8, 2, 4);
   ctx.fillStyle = "#2e8b57"; ctx.beginPath(); ctx.ellipse(2, -6, 3, 1.5, Math.PI/4, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
@@ -826,27 +917,36 @@ function drawEnvironment() {
 }
 
 function drawTent() {
-  const tx = state.tent.x; const ty = state.tent.y;
+  const tx = state.tent.x;
+  const ty = state.tent.y;
   ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.beginPath();
   ctx.ellipse(tx, ty + 20, 75, 25, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#1a252f"; ctx.beginPath(); ctx.moveTo(tx, ty - 60);
-  ctx.lineTo(tx - 65, ty + 35); ctx.lineTo(tx + 65, ty + 35); ctx.fill();
+  ctx.lineTo(tx - 65, ty + 35); ctx.lineTo(tx + 65, ty + 35);
+  ctx.fill();
   ctx.fillStyle = "#050505"; ctx.beginPath();
-  ctx.moveTo(tx, ty - 25); ctx.lineTo(tx - 30, ty + 35); ctx.lineTo(tx + 30, ty + 35); ctx.fill();
+  ctx.moveTo(tx, ty - 25); ctx.lineTo(tx - 30, ty + 35);
+  ctx.lineTo(tx + 30, ty + 35); ctx.fill();
   ctx.fillStyle = "#2c3e50";
-  ctx.beginPath(); ctx.moveTo(tx, ty - 60); ctx.lineTo(tx - 65, ty + 35); ctx.lineTo(tx - 25, ty + 35);
+  ctx.beginPath(); ctx.moveTo(tx, ty - 60);
+  ctx.lineTo(tx - 65, ty + 35); ctx.lineTo(tx - 25, ty + 35);
   ctx.lineTo(tx, ty - 25); ctx.fill();
-  ctx.fillStyle = "#34495e"; ctx.beginPath(); ctx.moveTo(tx, ty - 60); ctx.lineTo(tx + 65, ty + 35);
-  ctx.lineTo(tx + 25, ty + 35); ctx.lineTo(tx, ty - 25); ctx.fill();
+  ctx.fillStyle = "#34495e";
+  ctx.beginPath(); ctx.moveTo(tx, ty - 60); ctx.lineTo(tx + 65, ty + 35);
+  ctx.lineTo(tx + 25, ty + 35);
+  ctx.lineTo(tx, ty - 25); ctx.fill();
   ctx.strokeStyle = "#7f8c8d"; ctx.lineWidth = 2; ctx.beginPath();
-  ctx.moveTo(tx - 65, ty + 35); ctx.lineTo(tx - 85, ty + 50); ctx.moveTo(tx + 65, ty + 35);
+  ctx.moveTo(tx - 65, ty + 35);
+  ctx.lineTo(tx - 85, ty + 50); ctx.moveTo(tx + 65, ty + 35);
   ctx.lineTo(tx + 85, ty + 50); ctx.stroke();
   ctx.fillStyle = "#95a5a6"; ctx.beginPath(); ctx.arc(tx, ty - 60, 3, 0, Math.PI*2); ctx.fill();
 }
 
 function drawFireLight() {
-  const darkFactor = nightBlend(); if (state.fire.level <= 0) return;
-  const lightIntensity = isNight() ? 0.6 * darkFactor : 0.15; const firePower = state.fire.level / 100; const flicker = Math.sin(state.fire.animationTimer * 0.5) * 8;
+  const darkFactor = nightBlend();
+  if (state.fire.level <= 0) return;
+  const lightIntensity = isNight() ? 0.6 * darkFactor : 0.15;
+  const firePower = state.fire.level / 100; const flicker = Math.sin(state.fire.animationTimer * 0.5) * 8;
   const radius = (firePower * 180) + flicker + 30;
   const gradient = ctx.createRadialGradient(state.fire.x, state.fire.y, 5, state.fire.x, state.fire.y, radius);
   gradient.addColorStop(0, `rgba(255, 120, 0, ${lightIntensity})`); gradient.addColorStop(0.3, `rgba(255, 60, 0, ${lightIntensity * 0.5})`); gradient.addColorStop(0.7, `rgba(255, 30, 0, ${lightIntensity * 0.2})`);
@@ -917,7 +1017,6 @@ function drawFireSprite() {
   const currentFrame = Math.floor(state.fire.animationTimer % totalFrames);
   const sx = (currentFrame % cols) * frameWidth;
   const sy = Math.floor(currentFrame / cols) * frameHeight;
-  
   ctx.drawImage(fireSprite, sx, sy, frameWidth, frameHeight, state.fire.x - 32, state.fire.y - 32, 64, 64);
   if (currentFireShieldTier >= 2 && state.rainDuration > 0) {
       ctx.save();
@@ -1022,7 +1121,8 @@ function draw() {
   state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false));
   state.apples.forEach(apple => drawApple(apple.x, apple.y));
   if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
-  drawTent(); drawCampfireBase(); drawFireSprite(); drawSparks(); drawSmoke();
+  drawTent(); drawCampfireBase(); drawFireSprite();
+  drawSparks(); drawSmoke();
   const darkFactor = nightBlend();
   if (darkFactor > 0) { 
       ctx.save();
@@ -1088,12 +1188,41 @@ function draw() {
       ctx.restore();
   }
 
+  if (state.pond.fishProgress > 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(state.player.x - 20, state.player.y - 45, 40, 6);
+      ctx.fillStyle = "#4ea9ff";
+      ctx.fillRect(state.player.x - 20, state.player.y - 45, 40 * (state.pond.fishProgress / 4.0), 6);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center"; ctx.fillText("Fishing...", state.player.x, state.player.y - 50);
+  }
+  if (state.cookTimer > 0) {
+      let reqTime = state.equippedFood === "fish" ? 3.0 : 2.0;
+      ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(state.player.x - 20, state.player.y - 45, 40, 6);
+      ctx.fillStyle = "#ff9900";
+      ctx.fillRect(state.player.x - 20, state.player.y - 45, 40 * (state.cookTimer / reqTime), 6);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center"; ctx.fillText("Cooking...", state.player.x, state.player.y - 50);
+  }
+
+  if (state.equippedFood) {
+      let icon = "";
+      if (state.equippedFood === "apple") icon = "🍎";
+      if (state.equippedFood === "mushroom") icon = "🍄";
+      if (state.equippedFood === "cooked_mushroom") icon = "🥘"; 
+      if (state.equippedFood === "fish") icon = "🐟";
+      if (state.equippedFood === "cooked_fish") icon = "🍣";
+      ctx.font = "20px Arial"; ctx.textAlign = "center";
+      let offsetY = (state.cookTimer > 0 || state.pond.fishProgress > 0) ? 75 : 55;
+      ctx.fillText(icon, state.player.x, state.player.y - offsetY);
+  }
+  
   if (state.damageFlash > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${state.damageFlash * 0.4})`; ctx.fillRect(-5, -5, w, h); }
 }
 
 function resetGame() {
     state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false; state.score = 0;
-    state.health = 100; state.energy = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
+    state.health = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
     state.sessionGoldenWood = 0;
     
     updateMaxWoodCapacity();
@@ -1118,7 +1247,8 @@ function resetGame() {
     state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; state.blueMushroomTimer = 30 + Math.random() * 30; state.superModeTimer = 0; state.raccoonSpawnTimer = 15;
     state.windTimer = 20 + Math.random() * 30; state.windDuration = 0; state.rainTimer = 30 + Math.random() * 40; state.rainDuration = 0;
     state.bloodMoonActive = false; state.bloodMoonMessageTimer = 0; state.survivedBloodMoonMessageTimer = 0; state.bloodMoonHowlTimer = 0; state.fireEaterSpawnTimer = 0;
-    controls.up = false; controls.down = false; controls.left = false; controls.right = false;
+    controls.up = false;
+    controls.down = false; controls.left = false; controls.right = false;
     seedWoods(); updateHud();
 }
 
@@ -1135,7 +1265,6 @@ const joystickZone = document.getElementById("joystickZone");
 const joystickBase = document.getElementById("joystickBase");
 const joystickStick = document.getElementById("joystickStick");
 const mobileActionBtn = document.getElementById("mobileActionBtn");
-
 let joystickActive = false;
 let joyBaseX = 0, joyBaseY = 0;
 const maxJoyRadius = 40;
@@ -1248,7 +1377,6 @@ document.getElementById("scoresBtn").addEventListener("click", () => {
     const scoreH2 = document.querySelector("#scoreBoard h2");
     if(scoreH2) scoreH2.textContent = "CAREER STATS";
 });
-
 document.getElementById("backBtn").addEventListener("click", () => { document.getElementById("scoreBoard").classList.add("hidden"); document.getElementById("mainMenu").classList.remove("hidden"); });
 
 const menuReturnBtn = document.getElementById("menuReturnBtn");
@@ -1266,16 +1394,23 @@ if (mainMenuBtns && !document.getElementById("upgradesBtn")) {
     upgBtn.id = "upgradesBtn";
     upgBtn.className = "menu-btn secondary";
     upgBtn.innerHTML = "🟡 UPGRADES";
+    
+    upgBtn.addEventListener("click", () => {
+        renderUpgradesMenu();
+        document.getElementById("mainMenu").classList.add("hidden");
+        document.getElementById("upgradesMenu").classList.remove("hidden");
+    });
+    
     mainMenuBtns.appendChild(upgBtn);
 }
 
 function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     const uMenu = document.getElementById("upgradesMenu");
-    
     let bpButtonHTML = "";
     let bpDescHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
-    if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`; }
+    if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`;
+    }
     else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>";
     bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
     else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>";
@@ -1285,7 +1420,8 @@ function renderUpgradesMenu() {
 
     let petButtonHTML = "";
     let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
-    if (currentPetTier === 0) { petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`; }
+    if (currentPetTier === 0) { petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`;
+    }
     else if (currentPetTier === 1) { petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>";
     petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`; }
     else { petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
@@ -1293,7 +1429,8 @@ function renderUpgradesMenu() {
 
     let fsButtonHTML = "";
     let fsDescHTML = "No protection. <br> Next: <span style='color:#ffd700'>Windbreak Stones (Lv. 1)</span>";
-    if (currentFireShieldTier === 0) { fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 200</button>`; }
+    if (currentFireShieldTier === 0) { fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 200</button>`;
+    }
     else if (currentFireShieldTier === 1) { fsDescHTML = "Wind resistance. <br> Next: <span style='color:#ffd700'>Treated Wood (Lv. 2)</span>";
     fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 500</button>`; }
     else if (currentFireShieldTier === 2) { fsDescHTML = "Rain & Wind resistance. <br> Next: <span style='color:#ffd700'>Guardian Aura (Lv. 3)</span>";
@@ -1309,17 +1446,20 @@ function renderUpgradesMenu() {
         
         <div class="shop-container">
             <div class="shop-card">
+ 
                 <div class="card-info">
                     <h3>Wood Backpack (Lv. ${currentBackpackTier})</h3>
                     <p>${bpDescHTML}</p>
                 </div>
                 <div class="button-container">${bpButtonHTML}</div>
+        
             </div>
             
             <div class="shop-card">
                 <div class="card-info">
                     <h3>Good Boy Training (Lv. ${currentPetTier})</h3>
                     <p>${petDescHTML}</p>
+          
                 </div>
                 <div class="button-container">${petButtonHTML}</div>
             </div>
@@ -1370,7 +1510,8 @@ window.buyPetUpgrade = function() {
         updatePetStats();
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
-    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving.");
+    }
 };
 
 window.buyFireShieldUpgrade = function() {
