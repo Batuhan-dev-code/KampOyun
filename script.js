@@ -61,9 +61,17 @@ const state = {
   
   isMuted: localStorage.getItem("campfireMuted") === "true",
   bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0, fireEaterSpawnTimer: 0,
-  bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0
+  bagWood: 0, score: 0, health: 100, energy: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
+  // ... (üst kısımlar aynı kalacak)
+  damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
+  
+  // YENİ: Yiyecek deposu, elde tutulan eşya, elmalar ve gölet
+  inventory: { apple: 0, mushroom: 0, fish: 0 },
+  equippedFood: null,
+  apples: [],
+  pond: { x: 0, y: 0, r: 55, fishProgress: 0 }
 };
-
+  
 function initAudio() {
   if (audioStarted) return;
   audioStarted = true;
@@ -187,12 +195,21 @@ function getPlayerDrawSize() { return spriteFrames.walk.w * PLAYER_SCALE; }
 function configureDeathClip() { const fw = spriteFrames.die.w; const fh = spriteFrames.die.h; const cols = Math.max(1, Math.floor((dieSprite.naturalWidth || fw) / fw)); const rows = Math.max(1, Math.floor((dieSprite.naturalHeight || fh) / fh)); deathClip.row = Math.max(0, rows - 1); deathClip.startCol = rows > 1 ? Math.floor(cols * 0.5) : Math.floor(cols * 0.6); if (deathClip.startCol >= cols) deathClip.startCol = Math.max(0, cols - 1); deathClip.frameCount = Math.max(1, cols - deathClip.startCol); }
 function inferSpriteFrameSize({ img, preferred, min, max, rowsHint }) { const w = img.naturalWidth || 0; const h = img.naturalHeight || 0; if (!w || !h) return null; const candidates = []; const tryAdd = (fw, fh, cols, rows) => { if (fw >= min && fw <= max && fh >= min && fh <= max) { candidates.push({ w: fw, h: fh, score: Math.abs(fw - fh) * 100 + Math.abs(fw - preferred) + Math.abs(fh - preferred) }); } }; if (rowsHint >= 1 && h % rowsHint === 0) { const fh = h / rowsHint; if (w % fh === 0) tryAdd(w / fh, fh, w / fh, rowsHint); for (let cols = 1; cols <= Math.min(20, Math.floor(w / min)); cols += 1) { if (w % cols === 0) tryAdd(w / cols, fh, cols, rowsHint); } } const common = [16, 24, 32, 48, 64, 96]; common.forEach((fw) => { if (w % fw === 0) common.forEach((fh) => { if (h % fh === 0) tryAdd(fw, fh, w / fw, h / fh); }); }); if (!candidates.length) return null; candidates.sort((a, b) => a.score - b.score); return candidates[0]; }
 function generateTrees() { state.trees = []; const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; for (let i = 0; i < 70; i++) { let tx = Math.random() * w; let ty = Math.random() * h; if (dist({ x: tx, y: ty }, state.fire) > 230) { state.trees.push({ x: tx, y: ty, r: 15 + Math.random() * 25, color: Math.random() > 0.5 ? "#142e12" : "#1a3a17" }); } } }
-function resizeCanvas() { const ratio = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect(); canvas.width = Math.floor(rect.width * ratio); canvas.height = Math.floor(rect.height * ratio); ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.imageSmoothingEnabled = false; state.fire.x = rect.width * 0.5; state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85; if (state.trees.length === 0) generateTrees(); }
+function resizeCanvas() { const ratio = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect(); canvas.width = Math.floor(rect.width * ratio); canvas.height = Math.floor(rect.height * ratio); ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.imageSmoothingEnabled = false; state.fire.x = rect.width * 0.5; state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85; if (state.trees.length === 0) generateTrees(); state.pond.x = 90; state.pond.y = rect.height - 90;}
 function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y); return isNaN(d) ? 9999 : d; }
 
 function randomWood() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; const isGold = Math.random() < 0.15; for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30) return wood; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold }; }
 function randomMushroom() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; for (let i = 0; i < 20; i += 1) { const mushroom = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; if (dist(mushroom, state.fire) > state.fire.r + 80 && dist(mushroom, state.player) > state.player.r + 30) return mushroom; } return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 }; }
-function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); }
+function randomApple() { 
+  const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600; 
+  for (let i = 0; i < 20; i += 1) { 
+      const apple = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 }; 
+      if (dist(apple, state.fire) > state.fire.r + 80 && dist(apple, state.player) > state.player.r + 30) return apple; 
+  } 
+  return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 }; 
+}
+function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0; for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); state.apples = []; 
+  for (let i = 0; i < 3; i += 1) state.apples.push(randomApple());}
 function isNight() { return (state.dayNightTimer % CYCLE_SECONDS) >= DAY_SECONDS; }
 
 function updateHud() {
@@ -216,10 +233,35 @@ function collectItems() {
   state.woods = state.woods.filter((wood) => { if (dist(state.player, wood) <= state.player.r + wood.r) { if (wood.isGolden) goldenCollected++; else wCollected++; playSound(sounds.wood); return false; } return true; });
   let totalWood = wCollected + (goldenCollected * 5);
   if (totalWood > 0) { const spaceLeft = state.maxWood - state.bagWood; const actualCollected = Math.min(totalWood, spaceLeft); state.bagWood += actualCollected; state.score += (wCollected * 5) + (goldenCollected * 50); state.pendingWoodRespawns += (wCollected + goldenCollected); if (goldenCollected > 0) { state.sessionGoldenWood += goldenCollected; state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" }); } }
-  let mCollected = 0;
-  state.mushrooms = state.mushrooms.filter((m) => { if (dist(state.player, m) <= state.player.r + m.r) { mCollected += 1; state.health = Math.min(100, state.health + 25); playSound(sounds.wood); state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+25", life: 1.5, color: "#4ade80" }); return false; } return true; });
-  state.pendingMushroomRespawns += mCollected;
-  if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { state.superModeTimer = 8.0; playSound(sounds.feed); state.score += 100; state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER!", life: 2.0, color: "#00ffff" }); state.blueMushroom = null; state.blueMushroomTimer = 40 + Math.random() * 40; }
+// MANTARLARI DEPOYA ALMA (Anında can doldurmaz)
+state.mushrooms = state.mushrooms.filter((m) => { 
+  if (dist(state.player, m) <= state.player.r + m.r) { 
+      state.inventory.mushroom++; 
+      playSound(sounds.wood); 
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
+      state.pendingMushroomRespawns++;
+      return false; 
+  } 
+  return true; 
+});
+
+// ELMALARI DEPOYA ALMA
+state.apples = state.apples.filter((a) => { 
+  if (dist(state.player, a) <= state.player.r + a.r) { 
+      state.inventory.apple++; 
+      playSound(sounds.wood); 
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
+      return false; 
+  } 
+  return true; 
+});
+
+// Mavi mantar süper güç vermeye devam eder
+if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { 
+  state.superModeTimer = 8.0; playSound(sounds.feed); state.score += 100; 
+  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER!", life: 2.0, color: "#00ffff" }); 
+  state.blueMushroom = null; state.blueMushroomTimer = 40 + Math.random() * 40; 
+}  
 }
 
 function spawnSmoke(x, y, count) { for (let i = 0; i < count; i++) { state.smokeParticles.push({ x: x + (Math.random() * 20 - 10), y: y + (Math.random() * 10 - 5), vx: (Math.random() * 15 - 7.5), vy: -(15 + Math.random() * 25), life: 1.0, decay: 0.4 + Math.random() * 0.6, r: 8 + Math.random() * 12 }); } }
@@ -704,6 +746,14 @@ function drawMushroom(x, y, isSuper = false) {
   ctx.arc(3, -4, 1.2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -1.5, 1, 0, Math.PI*2); ctx.fill(); ctx.restore();
 }
 
+function drawApple(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "#ff1a1a"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#4a2e00"; ctx.fillRect(-1, -8, 2, 4); 
+  ctx.fillStyle = "#2e8b57"; ctx.beginPath(); ctx.ellipse(2, -6, 3, 1.5, Math.PI/4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
 function drawCampfireBase() { 
   const fx = state.fire.x; const fy = state.fire.y + 15;
   ctx.fillStyle = "rgba(20, 10, 10, 0.7)"; 
@@ -766,6 +816,13 @@ function drawEnvironment() {
   ctx.fillStyle = "#4a3525"; ctx.beginPath();
   ctx.ellipse(state.fire.x, state.fire.y - 20, 170, 100, 0, 0, Math.PI * 2); ctx.fill();
   state.trees.forEach(tree => { ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); });
+  ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
+  ctx.beginPath(); 
+  ctx.ellipse(state.pond.x, state.pond.y, state.pond.r, state.pond.r * 0.6, 0, 0, Math.PI * 2); 
+  ctx.fill();
+  ctx.strokeStyle = "rgba(99, 179, 237, 0.4)"; 
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 function drawTent() {
@@ -963,6 +1020,7 @@ function draw() {
   drawEnvironment(); 
   state.woods.forEach(wood => drawWoodItem(wood.x, wood.y, wood.angle, wood.isGolden));
   state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false));
+  state.apples.forEach(apple => drawApple(apple.x, apple.y));
   if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
   drawTent(); drawCampfireBase(); drawFireSprite(); drawSparks(); drawSmoke();
   const darkFactor = nightBlend();
