@@ -164,7 +164,6 @@ topRow.appendChild(muteBtnWrap);
 
 const barsGroup = document.createElement("div"); barsGroup.className = "bars-group";
 const fireWrap = document.createElement("div"); fireWrap.className = "bar-wrapper"; fireWrap.innerHTML = 'Fire <div class="bar-container"><div id="fireBar" class="bar-fill fire-fill"></div></div>'; barsGroup.appendChild(fireWrap);
-const energyWrap = document.createElement("div"); energyWrap.className = "bar-wrapper"; energyWrap.innerHTML = 'Energy <div class="bar-container"><div id="energyBar" class="bar-fill energy-fill"></div></div>'; barsGroup.appendChild(energyWrap);
 const healthWrap = document.createElement("div"); healthWrap.className = "bar-wrapper"; healthWrap.innerHTML = 'Health <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; barsGroup.appendChild(healthWrap);
 bottomRow.appendChild(barsGroup);
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text"; scoreWrap.innerHTML = `Day <span id="dayText">1</span> | Score: <span id="scoreText">0</span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`; bottomRow.appendChild(scoreWrap);
@@ -199,7 +198,6 @@ function isNight() { return (state.dayNightTimer % CYCLE_SECONDS) >= DAY_SECONDS
 function updateHud() {
   const fireBar = document.getElementById("fireBar"); if (fireBar) fireBar.style.width = Math.max(0, state.fire.level) + "%";
   const hBar = document.getElementById("healthBar"); if (hBar) hBar.style.width = Math.max(0, state.health) + "%";
-  const eBar = document.getElementById("energyBar"); if (eBar) eBar.style.width = Math.max(0, state.energy) + "%";
   const wWrap = document.getElementById("woodIconsWrapper");
   if (wWrap) { const icons = wWrap.querySelectorAll(".wood-icon"); icons.forEach((icon, index) => { if (index < state.bagWood) icon.classList.add("active"); else icon.classList.remove("active"); }); }
   const sIcon = document.querySelector(".sun-icon"); const mIcon = document.querySelector(".moon-icon:not(.blood-moon-icon)"); const bmIcon = document.querySelector(".blood-moon-icon");
@@ -437,12 +435,12 @@ function update(dt) {
   }
   
   updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt);
-  
-  if (isMoving) state.energy = Math.max(0, state.energy - dt * 3.8);
-  if (dist(state.player, state.fire) < state.player.r + state.fire.r + 34 && state.fire.level > 0) state.energy = Math.min(100, state.energy + dt * 2.2);
-  if (state.energy <= 0) state.health -= dt * 5.5;
-  if (isNight() && state.fire.level <= 0) state.health -= dt * 14;
+// YENİ: Enerji sistemi kaldırıldı, yorgunluk ve açlık doğrudan Health (Can) üzerinden hesaplanıyor
+state.health -= dt * 0.3; // Temel yaşamsal düşüş (Karakter dururken bile yavaşça acıkır)
+if (isMoving) state.health -= dt * 1.2; // Hareket yorgunluğu (Koşarken can biraz daha hızlı azalır)
 
+if (isNight() && state.fire.level <= 0) state.health -= dt * 14; // Gece ateş sönerse donma hasarı  
+  
   if (isNight()) {
       let bmMultiplier = state.bloodMoonActive ? 2 : 1;
       const maxEnemies = (3 + Math.floor(state.score / 50)) * bmMultiplier;
