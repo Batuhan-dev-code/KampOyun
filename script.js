@@ -59,7 +59,8 @@ const sounds = {
   wind: new Audio("assets/wind.mp3"),
   rain: new Audio("assets/rain.mp3"),
   bloodmoon: new Audio("assets/bloodmoon.mp3"),
-  howl: new Audio("assets/howl.mp3")
+  howl: new Audio("assets/howl.mp3"),
+  eat: new Audio("assets/eat.mp3")
 };
 sounds.fire.loop = true; sounds.day.loop = true; sounds.night.loop = true;
 sounds.wind.loop = true; sounds.rain.loop = true; sounds.bloodmoon.loop = true;
@@ -81,7 +82,7 @@ const state = {
   equippedFood: null,
   equippedCount: 0,
   apples: [],
-  pond: { x: 0, y: 0, r: 55, fishProgress: 0 },
+  pond: { x: 0, y: 0, r: 55, fishProgress: 0, fishCaughtToday: false },
   cookTimer: 0
 };
 
@@ -179,7 +180,7 @@ function updatePetStats() { if (currentPetTier === 0) { state.pet.speed = 155; }
 
 updateMaxWoodCapacity(); updatePetStats();
 
-function renderWoodIcons() { let html = '<span class="wood-label">Wood</span>'; for(let i=0; i<state.maxWood; i++) html += SVG_WOOD; return html; }
+function renderWoodIcons() { let html = '<span class="wood-label">🪵</span>'; for(let i=0; i<state.maxWood; i++) html += SVG_WOOD; return html; }
 const woodWrap = document.createElement("div"); woodWrap.className = "wood-container"; woodWrap.id = "woodIconsWrapper"; woodWrap.innerHTML = renderWoodIcons(); topRow.appendChild(woodWrap);
 const timeWrap = document.createElement("div"); timeWrap.className = "time-container"; timeWrap.innerHTML = SVG_SUN + SVG_MOON + SVG_BLOOD_MOON; topRow.appendChild(timeWrap);
 
@@ -203,10 +204,9 @@ topRow.appendChild(muteBtnWrap);
 
 const barsGroup = document.createElement("div"); barsGroup.className = "bars-group";
 const fireWrap = document.createElement("div"); fireWrap.className = "bar-wrapper";
-fireWrap.innerHTML = 'Fire <div class="bar-container"><div id="fireBar" class="bar-fill fire-fill"></div></div>'; barsGroup.appendChild(fireWrap);
+fireWrap.innerHTML = '🔥 <div class="bar-container"><div id="fireBar" class="bar-fill fire-fill"></div></div>'; barsGroup.appendChild(fireWrap);
 const healthWrap = document.createElement("div"); healthWrap.className = "bar-wrapper";
-healthWrap.innerHTML = 'Health <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; barsGroup.appendChild(healthWrap);
-bottomRow.appendChild(barsGroup);
+healthWrap.innerHTML = '❤️ <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; barsGroup.appendChild(healthWrap);bottomRow.appendChild(barsGroup);
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text";
 scoreWrap.innerHTML = `Day <span id="dayText">1</span> | Score: <span id="scoreText">0</span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`; bottomRow.appendChild(scoreWrap);
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
@@ -424,7 +424,7 @@ function feedFire() {
           state.equippedFood = null;
           state.equippedCount = 0;
       }
-      playSound(sounds.feed); updateHud();
+      playSound(sounds.eat); updateHud();
       return; 
   }
 
@@ -596,6 +596,7 @@ function update(dt) {
   if (calcDay > state.currentDay) { 
       state.currentDay = calcDay;
       state.dayMessageTimer = 3.0;
+      state.pond.fishCaughtToday = false;
   }
 
   if (isNight() && state.currentDay % 4 === 0) {
@@ -666,15 +667,16 @@ function update(dt) {
       dPond = state.pond.r + state.player.r - 5; // Balık tutma hesabı için mesafeyi sıfırla
   }
 
-  // KIYIDA BALIK TUTMA: Göletin sınırındaysa (Kenardayken)
-  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving) {
-      state.pond.fishProgress += dt;
-      if (state.pond.fishProgress >= 4.0) {
-          state.inventory.fish++;
-          state.pond.fishProgress = 0;
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
-      }
-  } else { state.pond.fishProgress = 0; }
+  // KIYIDA BALIK TUTMA: Göletin sınırında duruyorsa VE bugün henüz balık tutulmadıysa
+  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday) {
+    state.pond.fishProgress += dt;
+    if (state.pond.fishProgress >= 4.0) {
+        state.inventory.fish++;
+        state.pond.fishProgress = 0;
+        state.pond.fishCaughtToday = true; // BALIK TUTULDU, BUGÜNLÜK KOTA DOLDU!
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+    }
+} else { state.pond.fishProgress = 0; }
 
   if (!state.cookTimer) state.cookTimer = 0;
   let dFire = dist(state.player, state.fire);
