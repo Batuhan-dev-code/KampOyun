@@ -1114,6 +1114,50 @@ function drawEnvironment() {
   ctx.stroke();
   }
   ctx.restore();
+  // --- YENİ: ZIPLAYAN CANLI BALIK EFEKTİ ---
+  if (!state.pond.fishCaughtToday) {
+    ctx.save();
+    const cx = px + baseR * 0.45; // Göletin görünür merkezi X
+    const cy = py - baseR * 0.45; // Göletin görünür merkezi Y
+    
+    // Balığın dairesel yüzme rotası
+    const fishX = cx + Math.cos(time * 1.2) * (baseR * 0.25);
+    const fishY = cy + Math.sin(time * 1.2) * (baseR * 0.25);
+    
+    // Zıplama matematiği (Sadece sinüs pozitifken havaya kalkar)
+    const jumpSine = Math.sin(time * 2.5);
+    const jumpAmount = Math.max(0, jumpSine) * 15; 
+    
+    // Sağa mı gidiyor sola mı? (Yönüne göre karakteri çevir)
+    const isMovingRight = -Math.sin(time * 1.2) > 0;
+    
+    ctx.translate(fishX, fishY - jumpAmount);
+    if (isMovingRight) ctx.scale(-1, 1);
+    
+    // Su içindeyse saydam ve bulanık, havalandıysa net
+    ctx.globalAlpha = jumpAmount > 2 ? 1.0 : 0.4; 
+    
+    // --- TATLI BALIK ÇİZİMİ ---
+    ctx.fillStyle = "#ff7f50";
+    ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI*2); ctx.fill(); // Gövde
+    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.fill(); // Kuyruk
+    ctx.fillStyle = "#ff5722"; ctx.beginPath(); ctx.ellipse(0, -4, 3, 2, 0, 0, Math.PI*2); ctx.fill(); // Üst Yüzgeç
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -1, 1.5, 0, Math.PI*2); ctx.fill(); // Göz Beyazı
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4.5, -1, 0.5, 0, Math.PI*2); ctx.fill(); // Göz Bebeği
+    
+    ctx.restore();
+    
+    // --- SU SIÇRAMA EFEKTİ ---
+    // Sadece balık sudan çıkarken veya suya girerken ufak dalgalar yaratır
+    if (jumpAmount > 0 && jumpAmount < 6) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+        ctx.beginPath();
+        ctx.ellipse(fishX, fishY + 2, 6 + Math.random() * 4, 2, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
 }
 
 function drawTent() {
