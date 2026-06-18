@@ -60,7 +60,8 @@ const sounds = {
   rain: new Audio("assets/rain.mp3"),
   bloodmoon: new Audio("assets/bloodmoon.mp3"),
   howl: new Audio("assets/howl.mp3"),
-  eat: new Audio("assets/eat.mp3")
+  eat: new Audio("assets/eat.mp3"),
+  buy: new Audio("assets/buy.mp3")
 };
 sounds.fire.loop = true; sounds.day.loop = true; sounds.night.loop = true;
 sounds.wind.loop = true; sounds.rain.loop = true; sounds.bloodmoon.loop = true;
@@ -1785,7 +1786,7 @@ window.buyBackpackUpgrade = function() {
         const wWrap = document.getElementById("woodIconsWrapper");
         if (wWrap) wWrap.innerHTML = renderWoodIcons();
         renderUpgradesMenu();
-        if(sounds && sounds.feed) sounds.feed.play();
+        if(sounds && sounds.feed) sounds.buy.play();
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
@@ -1800,7 +1801,7 @@ window.buyPetUpgrade = function() {
         localStorage.setItem("campfirePetTier", currentPetTier);
         updatePetStats();
         renderUpgradesMenu();
-        if(sounds && sounds.feed) sounds.feed.play(); 
+        if(sounds && sounds.feed) sounds.buy.play(); 
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
@@ -1814,7 +1815,7 @@ window.buyFireShieldUpgrade = function() {
         currentFireShieldTier++;
         localStorage.setItem("campfireFireShieldTier", currentFireShieldTier);
         renderUpgradesMenu();
-        if(sounds && sounds.feed) sounds.feed.play(); 
+        if(sounds && sounds.feed) sounds.buy.play(); 
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
@@ -1829,7 +1830,7 @@ window.buyFishingUpgrade = function() {
         currentFishingTier++;
         localStorage.setItem("campfireFishingTier", currentFishingTier);
         renderUpgradesMenu();
-        if(sounds && sounds.feed) sounds.feed.play();
+        if(sounds && sounds.feed) sounds.buy.play();
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 // -----------------------------------------------------
