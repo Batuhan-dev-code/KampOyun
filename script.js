@@ -78,7 +78,7 @@ const state = {
   bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0, fireEaterSpawnTimer: 0,
   bagWood: 0, score: 0, health: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
   
-  inventory: { apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0 },
+  inventory: { apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 },
   equippedFood: null,
   equippedCount: 0,
   apples: [],
@@ -168,12 +168,14 @@ const bottomRow = document.createElement("div"); bottomRow.className = "hud-row"
 const UPGRADE_DATA = {
   backpack: [{ level: 1, capacity: 10, cost: 150 }, { level: 2, capacity: 15, cost: 450 }, { level: 3, capacity: 20, cost: 1200 }],
   pet: [{ level: 1, speed: 190, cost: 300 }, { level: 2, speed: 230, cost: 700 }],
-  fireShield: [{ level: 1, cost: 200 }, { level: 2, cost: 500 }, { level: 3, cost: 1000 }]
+  fireShield: [{ level: 1, cost: 200 }, { level: 2, cost: 500 }, { level: 3, cost: 1000 }],
+  fishing: [{ level: 1, cost: 300 }, { level: 2, cost: 800 }, { level: 3, cost: 1500 }]
 };
 
 let currentBackpackTier = parseInt(localStorage.getItem("backpackTier")) || 0;
 let currentPetTier = parseInt(localStorage.getItem("campfirePetTier")) || 0;
 let currentFireShieldTier = parseInt(localStorage.getItem("campfireFireShieldTier")) || 0;
+let currentFishingTier = parseInt(localStorage.getItem("campfireFishingTier")) || 0;
 
 function updateMaxWoodCapacity() { if (currentBackpackTier === 0) { state.maxWood = 5; } else { state.maxWood = UPGRADE_DATA.backpack[currentBackpackTier - 1].capacity; } }
 function updatePetStats() { if (currentPetTier === 0) { state.pet.speed = 155; } else if (currentPetTier === 1) { state.pet.speed = 190; } else if (currentPetTier === 2) { state.pet.speed = 230; } }
@@ -319,6 +321,8 @@ function updateHud() {
               <div class="tent-item" onpointerdown="equipFood('apple')">🍎 ${state.inventory.apple}</div>
               <div class="tent-item" onpointerdown="equipFood('mushroom')">🍄 ${state.inventory.mushroom}</div>
               <div class="tent-item" onpointerdown="equipFood('fish')">🐟 ${state.inventory.fish}</div>
+              ${state.inventory.blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('blue_fish')">💎🐟 ${state.inventory.blue_fish}</div>` : ""}
+              ${state.inventory.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish')">💎🍣 ${state.inventory.cooked_blue_fish}</div>` : ""}
               ${state.inventory.cooked_mushroom > 0 ?
               `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom')">🥘 ${state.inventory.cooked_mushroom}</div>` : ""}
               ${state.inventory.cooked_fish > 0 ?
@@ -331,7 +335,7 @@ function updateHud() {
 
   const mBtn = document.getElementById("mobileActionBtn");
   if (mBtn) {
-      if (state.equippedFood && state.equippedFood !== "fish") { 
+    if (state.equippedFood && state.equippedFood !== "fish" && state.equippedFood !== "blue_fish") { 
           mBtn.innerHTML = "EAT";
           mBtn.style.color = "#4ade80"; 
       } else {
@@ -417,6 +421,11 @@ function feedFire() {
       } else if (state.equippedFood === "cooked_fish") {
           state.health = Math.min(100, state.health + 80);
           state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+80 HP", life: 1.5, color: "#4ade80" });
+        } else if (state.equippedFood === "cooked_blue_fish") {
+          state.health = 100;
+          state.superModeTimer = 16.0; // 16 Saniye Ölümsüzlük!
+          state.score += 200;
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER MODE!", life: 2.0, color: "#00ffff" });
       }
       
       state.equippedCount--;
@@ -430,9 +439,9 @@ function feedFire() {
 
   const inRange = dist(state.player, state.fire) < state.player.r + state.fire.r + 20;
   if (!inRange || state.bagWood <= 0) {
-      if (state.equippedFood === "fish") {
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NEEDS COOKING!", life: 1.5, color: "#ff4a4a" });
-      }
+    if (state.equippedFood === "fish" || state.equippedFood === "blue_fish") {
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NEEDS COOKING!", life: 1.5, color: "#ff4a4a" });
+  }
       return;
   }
   
@@ -667,26 +676,45 @@ function update(dt) {
       dPond = state.pond.r + state.player.r - 5; // Balık tutma hesabı için mesafeyi sıfırla
   }
 
-  // KIYIDA BALIK TUTMA: Göletin sınırında duruyorsa VE bugün henüz balık tutulmadıysa
-  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday) {
+// KIYIDA BALIK TUTMA
+let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; // 1. Seviyede süre yarıya düşer
+if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday) {
     state.pond.fishProgress += dt;
-    if (state.pond.fishProgress >= 4.0) {
-        state.inventory.fish++;
+    if (state.pond.fishProgress >= reqFishTime) {
         state.pond.fishProgress = 0;
-        state.pond.fishCaughtToday = true; // BALIK TUTULDU, BUGÜNLÜK KOTA DOLDU!
-        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+        state.pond.fishCaughtToday = true;
+        
+        // 2. Seviye: %20 Şansla Altın Çekme (Treasure)
+        if (currentFishingTier >= 2 && Math.random() < 0.20) {
+            state.sessionGoldenWood += 10;
+            let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
+            localStorage.setItem("campfireGoldenWood", currentBank + 10);
+            state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "TREASURE! +10 🟡", life: 2.0, color: "#ffd700" });
+            playSound(sounds.wood);
+        } else {
+            // 3. Seviye: Mavi Balık
+            if (currentFishingTier >= 3) {
+                state.inventory.blue_fish++;
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+            } else {
+                state.inventory.fish++;
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+            }
+        }
     }
 } else { state.pond.fishProgress = 0; }
 
-  if (!state.cookTimer) state.cookTimer = 0;
+if (!state.cookTimer) state.cookTimer = 0;
   let dFire = dist(state.player, state.fire);
   let nearFire = dFire < state.fire.r + 40 && state.fire.level > 0;
-  if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fish")) {
+  
+  if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fish" || state.equippedFood === "blue_fish")) {
       state.cookTimer += dt;
-      let reqTime = state.equippedFood === "fish" ? 3.0 : 2.0;
+      let reqTime = (state.equippedFood === "fish" || state.equippedFood === "blue_fish") ? 3.0 : 2.0;
       if (state.cookTimer >= reqTime) {
-          state.equippedFood = state.equippedFood === "fish" ?
-  "cooked_fish" : "cooked_mushroom";
+          if (state.equippedFood === "fish") state.equippedFood = "cooked_fish";
+          else if (state.equippedFood === "blue_fish") state.equippedFood = "cooked_blue_fish";
+          else state.equippedFood = "cooked_mushroom";
           state.cookTimer = 0;
           state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "COOKED!", life: 1.5, color: "#ff9900" });
       }
@@ -1132,20 +1160,22 @@ function drawEnvironment() {
     const isMovingRight = -Math.sin(time * 1.2) > 0;
     
     ctx.translate(fishX, fishY - jumpAmount);
-    if (isMovingRight) ctx.scale(-1, 1);
-    
-    // Su içindeyse saydam ve bulanık, havalandıysa net
-    ctx.globalAlpha = jumpAmount > 2 ? 1.0 : 0.4; 
-    
-    // --- TATLI BALIK ÇİZİMİ ---
-    ctx.fillStyle = "#ff7f50";
-    ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI*2); ctx.fill(); // Gövde
-    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.fill(); // Kuyruk
-    ctx.fillStyle = "#ff5722"; ctx.beginPath(); ctx.ellipse(0, -4, 3, 2, 0, 0, Math.PI*2); ctx.fill(); // Üst Yüzgeç
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -1, 1.5, 0, Math.PI*2); ctx.fill(); // Göz Beyazı
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4.5, -1, 0.5, 0, Math.PI*2); ctx.fill(); // Göz Bebeği
-    
-    ctx.restore();
+      if (isMovingRight) ctx.scale(-1, 1);
+      
+      let isBlue = currentFishingTier >= 3;
+      if (isBlue) ctx.scale(1.4, 1.4); // Mavi balıksa devasa olur
+      
+      ctx.globalAlpha = jumpAmount > 2 ? 1.0 : 0.4; 
+      
+      // --- TATLI BALIK ÇİZİMİ ---
+      ctx.fillStyle = isBlue ? "#00e5ff" : "#ff7f50";
+      ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI*2); ctx.fill(); // Gövde
+      ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.fill(); // Kuyruk
+      ctx.fillStyle = isBlue ? "#00b0ff" : "#ff5722"; 
+      ctx.beginPath(); ctx.ellipse(0, -4, 3, 2, 0, 0, Math.PI*2); ctx.fill(); // Üst Yüzgeç
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -1, 1.5, 0, Math.PI*2); ctx.fill(); // Göz Beyazı
+      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4.5, -1, 0.5, 0, Math.PI*2); ctx.fill(); // Göz Bebeği
+      ctx.restore();
     
     // --- SU SIÇRAMA EFEKTİ ---
     // Sadece balık sudan çıkarken veya suya girerken ufak dalgalar yaratır
@@ -1462,6 +1492,8 @@ function draw() {
   if (state.equippedFood === "cooked_mushroom") icon = "🥘"; 
       if (state.equippedFood === "fish") icon = "🐟";
   if (state.equippedFood === "cooked_fish") icon = "🍣";
+      if (state.equippedFood === "blue_fish") icon = "💎🐟";
+  if (state.equippedFood === "cooked_blue_fish") icon = "💎🍣";    
       ctx.font = "20px Arial"; ctx.textAlign = "center";
   let offsetY = (state.cookTimer > 0 || state.pond.fishProgress > 0) ? 75 : 55;
   let countText = state.equippedCount > 1 ? " x" + state.equippedCount : "";
@@ -1661,36 +1693,35 @@ const mainMenuBtns = document.querySelector("#mainMenu .menu-buttons");
 function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     const uMenu = document.getElementById("upgradesMenu");
-  let bpButtonHTML = "";
+    
+    let bpButtonHTML = "";
     let bpDescHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
-  if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`;
-  }
-    else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>";
-  bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
-    else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>";
-  bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`; }
-    else { bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-  bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+    if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`; }
+    else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
+    else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`; }
+    else { bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
     let petButtonHTML = "";
-  let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
-  if (currentPetTier === 0) { petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`;
-  }
-    else if (currentPetTier === 1) { petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>";
-  petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`; }
-    else { petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-  petButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+    let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
+    if (currentPetTier === 0) { petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 300</button>`; }
+    else if (currentPetTier === 1) { petDescHTML = "Awake at night & barks to warn. <br> Next: <span style='color:#ffd700'>Defender (Lv. 2)</span>"; petButtonHTML = `<button class="buy-btn" onclick="buyPetUpgrade()">💰 700</button>`; }
+    else { petDescHTML = "Awake at night & stuns nearest enemy. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; petButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
     let fsButtonHTML = "";
-  let fsDescHTML = "No protection. <br> Next: <span style='color:#ffd700'>Windbreak Stones (Lv. 1)</span>";
-  if (currentFireShieldTier === 0) { fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 200</button>`;
-  }
-    else if (currentFireShieldTier === 1) { fsDescHTML = "Wind resistance. <br> Next: <span style='color:#ffd700'>Treated Wood (Lv. 2)</span>";
-  fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 500</button>`; }
-    else if (currentFireShieldTier === 2) { fsDescHTML = "Rain & Wind resistance. <br> Next: <span style='color:#ffd700'>Guardian Aura (Lv. 3)</span>";
-  fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 1000</button>`; }
-    else { fsDescHTML = "Immune to Storms. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>";
-  fsButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+    let fsDescHTML = "No protection. <br> Next: <span style='color:#ffd700'>Windbreak Stones (Lv. 1)</span>";
+    if (currentFireShieldTier === 0) { fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 200</button>`; }
+    else if (currentFireShieldTier === 1) { fsDescHTML = "Wind resistance. <br> Next: <span style='color:#ffd700'>Treated Wood (Lv. 2)</span>"; fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 500</button>`; }
+    else if (currentFireShieldTier === 2) { fsDescHTML = "Rain & Wind resistance. <br> Next: <span style='color:#ffd700'>Guardian Aura (Lv. 3)</span>"; fsButtonHTML = `<button class="buy-btn" onclick="buyFireShieldUpgrade()">💰 1000</button>`; }
+    else { fsDescHTML = "Immune to Storms. <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; fsButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+
+    // --- YENİ EKLENEN BALIKÇILIK (FISHING GEAR) KISMI ---
+    let fgButtonHTML = "";
+    let fgDescHTML = "Time: 4s. <br> Next: <span style='color:#ffd700'>Sturdy Rod (2s)</span>";
+    if (currentFishingTier === 0) { fgButtonHTML = `<button class="buy-btn" onclick="buyFishingUpgrade()">💰 300</button>`; }
+    else if (currentFishingTier === 1) { fgDescHTML = "Time: 2s. <br> Next: <span style='color:#ffd700'>Lucky Lure (20% Chest)</span>"; fgButtonHTML = `<button class="buy-btn" onclick="buyFishingUpgrade()">💰 800</button>`; }
+    else if (currentFishingTier === 2) { fgDescHTML = "2s + 20% Chest. <br> Next: <span style='color:#ffd700'>Harpoon (Blue Fish)</span>"; fgButtonHTML = `<button class="buy-btn" onclick="buyFishingUpgrade()">💰 1500</button>`; }
+    else { fgDescHTML = "Catches Super Blue Fish! <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; fgButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+    // ----------------------------------------------------
 
     uMenu.innerHTML = `
         <h2>UPGRADES</h2>
@@ -1700,53 +1731,54 @@ function renderUpgradesMenu() {
         
         <div class="shop-container">
             <div class="shop-card">
- 
-  
                 <div class="card-info">
                     <h3>Wood Backpack (Lv. ${currentBackpackTier})</h3>
                     <p>${bpDescHTML}</p>
                 </div>
                 <div class="button-container">${bpButtonHTML}</div>
-       
-         
             </div>
             
             <div class="shop-card">
                 <div class="card-info">
                     <h3>Good Boy Training (Lv. ${currentPetTier})</h3>
                     <p>${petDescHTML}</p>
- 
-           
                 </div>
                 <div class="button-container">${petButtonHTML}</div>
             </div>
 
             <div class="shop-card">
                 <div class="card-info">
-                
-      <h3>Fire Shield (Lv. ${currentFireShieldTier})</h3>
+                    <h3>Fire Shield (Lv. ${currentFireShieldTier})</h3>
                     <p>${fsDescHTML}</p>
                 </div>
                 <div class="button-container">${fsButtonHTML}</div>
             </div>
-        </div>
+            
+            <div class="shop-card">
+                <div class="card-info">
+                    <h3>Fishing Gear (Lv. ${currentFishingTier})</h3>
+                    <p>${fgDescHTML}</p>
+                </div>
+                <div class="button-container">${fgButtonHTML}</div>
+            </div>
+            </div>
         
-        <button id="closeUpgradesBtn" class="menu-btn secondary" 
-  style="width:120px; padding:10px; margin-top:10px;">BACK</button>
+        <button id="closeUpgradesBtn" class="menu-btn secondary" style="width:120px; padding:10px; margin-top:10px;">BACK</button>
     `;
+    
     document.getElementById("closeUpgradesBtn").addEventListener("click", () => {
         document.getElementById("upgradesMenu").classList.add("hidden");
         document.getElementById("mainMenu").classList.remove("hidden");
     });
-  }
+}
 
 window.buyBackpackUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentBackpackTier >= UPGRADE_DATA.backpack.length) return;
-  const nextUpgrade = UPGRADE_DATA.backpack[currentBackpackTier];
+    const nextUpgrade = UPGRADE_DATA.backpack[currentBackpackTier];
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
-  localStorage.setItem("campfireGoldenWood", totalGold);
+        localStorage.setItem("campfireGoldenWood", totalGold);
         currentBackpackTier++;
         localStorage.setItem("backpackTier", currentBackpackTier);
         updateMaxWoodCapacity();
@@ -1754,44 +1786,61 @@ window.buyBackpackUpgrade = function() {
         if (wWrap) wWrap.innerHTML = renderWoodIcons();
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play();
-  } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
-  window.buyPetUpgrade = function() {
+
+window.buyPetUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentPetTier >= UPGRADE_DATA.pet.length) return;
-  const nextUpgrade = UPGRADE_DATA.pet[currentPetTier];
+    const nextUpgrade = UPGRADE_DATA.pet[currentPetTier];
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
-  localStorage.setItem("campfireGoldenWood", totalGold);
+        localStorage.setItem("campfireGoldenWood", totalGold);
         currentPetTier++;
         localStorage.setItem("campfirePetTier", currentPetTier);
         updatePetStats();
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
-    } else { showShopNotification("Not enough Golden Wood! Keep surviving.");
-  }
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
 
 window.buyFireShieldUpgrade = function() {
     let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
     if (currentFireShieldTier >= UPGRADE_DATA.fireShield.length) return;
-  const nextUpgrade = UPGRADE_DATA.fireShield[currentFireShieldTier];
+    const nextUpgrade = UPGRADE_DATA.fireShield[currentFireShieldTier];
     if (totalGold >= nextUpgrade.cost) {
         totalGold -= nextUpgrade.cost;
-  localStorage.setItem("campfireGoldenWood", totalGold);
+        localStorage.setItem("campfireGoldenWood", totalGold);
         currentFireShieldTier++;
         localStorage.setItem("campfireFireShieldTier", currentFireShieldTier);
         renderUpgradesMenu();
         if(sounds && sounds.feed) sounds.feed.play(); 
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
 };
-  function showShopNotification(message) {
+
+// --- YENİ EKLENEN BALIKÇILIK SATIN ALMA FONKSİYONU ---
+window.buyFishingUpgrade = function() {
+    let totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
+    if (currentFishingTier >= UPGRADE_DATA.fishing.length) return;
+    const nextUpgrade = UPGRADE_DATA.fishing[currentFishingTier];
+    if (totalGold >= nextUpgrade.cost) {
+        totalGold -= nextUpgrade.cost;
+        localStorage.setItem("campfireGoldenWood", totalGold);
+        currentFishingTier++;
+        localStorage.setItem("campfireFishingTier", currentFishingTier);
+        renderUpgradesMenu();
+        if(sounds && sounds.feed) sounds.feed.play();
+    } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
+};
+// -----------------------------------------------------
+
+function showShopNotification(message) {
     const notifEl = document.getElementById("shopNotification");
     if (!notifEl) return;
     notifEl.textContent = message;
     notifEl.style.opacity = "1";
-  if (window.shopNotifTimeout) clearTimeout(window.shopNotifTimeout);
+    if (window.shopNotifTimeout) clearTimeout(window.shopNotifTimeout);
     window.shopNotifTimeout = setTimeout(() => {
         notifEl.style.opacity = "0";
     }, 2000);
-  }
+}
