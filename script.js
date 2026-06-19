@@ -13,9 +13,9 @@ const hudEl = document.querySelector(".hud");
 
 const tentStyle = document.createElement('style');
 tentStyle.innerHTML = `
-  #tentMenu { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.85); border: 2px solid #a0522d; border-radius: 12px; padding: 12px; display: flex; gap: 20px; pointer-events: auto; z-index: 100; transition: opacity 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-  .tent-item { color: white; font-size: 18px; font-weight: bold; cursor: pointer; text-align: center; padding: 8px 15px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: background 0.2s; user-select: none; }
-  .tent-item:active { background: rgba(255,255,255,0.3); }
+  #tentMenu { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #a0522d; border-radius: 12px; padding: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; pointer-events: auto; z-index: 100; transition: opacity 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.6); max-width: 85%; width: max-content; }
+  .tent-item { color: white; font-size: 14px; font-weight: bold; cursor: pointer; text-align: center; padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: all 0.1s; user-select: none; }
+  .tent-item:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
   .hidden-fade { opacity: 0; pointer-events: none !important; }
 `;
 document.head.appendChild(tentStyle);
@@ -354,8 +354,15 @@ function updateHud() {
   
   const tMenu = document.getElementById("tentMenu");
   if (tMenu) {
-      if (dist(state.player, state.tent) < state.tent.r + 40) {
-          tMenu.classList.remove("hidden-fade");
+      // Çadırın giriş kapısının koordinatını belirliyoruz (Çadır merkezinin biraz altı)
+      const entrancePos = { x: state.tent.x, y: state.tent.y + 35 };
+      
+      // EĞER OYUN BİTTİYSE VEYA OYUNCU KAPIDA DEĞİLSE MENÜYÜ GİZLE
+      if (state.gameOver || dist(state.player, entrancePos) > 40) {
+          tMenu.classList.add("hidden-fade");
+      } else {
+          tMenu.classList.remove("hidden-fade"); 
+          
           const newTentHTML = `
               <div class="tent-item" onpointerdown="equipFood('apple', event)">🍎 ${state.inventory.apple}</div>
               <div class="tent-item" onpointerdown="equipFood('mushroom', event)">🍄 ${state.inventory.mushroom}</div>
@@ -364,14 +371,12 @@ function updateHud() {
               ${state.inventory.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.inventory.cooked_blue_fish}</div>` : ""}
               ${state.inventory.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.inventory.cooked_mushroom}</div>` : ""}
               ${state.inventory.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.inventory.cooked_fish}</div>` : ""}
-              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-left: 20px;" onpointerdown="packCampAndLeave(event)">🏕️ PACK CAMP</div>
+              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71;" onpointerdown="packCampAndLeave(event)">🏕️ PACK CAMP</div>
           `;
+          
           if (tMenu.innerHTML !== newTentHTML) {
               tMenu.innerHTML = newTentHTML;
           }
-          
-      } else {
-          tMenu.classList.add("hidden-fade");
       }
   }
 
