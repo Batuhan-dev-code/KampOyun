@@ -240,9 +240,13 @@ updateMaxCarryCapacity(); updatePetStats();
 function renderBagIcons() { 
     let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
     let isFull = currentCarry >= state.maxCarry;
+    
+    // Çanta doluysa kırmızı ve kalın bir (FULL) yazısı ekler
+    let statusText = isFull ? `<span style="color:#ff4a4a; font-size:12px; margin-left:4px; font-weight:900;">(FULL)</span>` : "";
+    
     let html = `
         <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
-            <span style="font-size:16px;">🎒 <span style="color:${isFull ? '#ff4a4a' : '#fff'}; font-weight:bold;">${currentCarry}/${state.maxCarry}</span></span>
+            <span style="font-size:16px;">🎒 <span style="color:${isFull ? '#ff4a4a' : '#fff'}; font-weight:bold;">${currentCarry}/${state.maxCarry}</span>${statusText}</span>
         </div>
         <div style="display:flex; justify-content:center; gap:6px; font-size:12px; margin-top:2px;">
     `;
@@ -456,8 +460,6 @@ function collectItems() {
                   playSound(sounds.wood);
                   state.pendingWoodRespawns++;
                   return false;
-              } else {
-                  if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
               }
           }
       } 
@@ -473,8 +475,6 @@ function collectItems() {
               state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
               state.pendingMushroomRespawns++;
               return false; 
-          } else {
-              if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
           }
       } 
       return true; 
@@ -488,8 +488,6 @@ function collectItems() {
               playSound(sounds.wood); 
               state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
               return false; 
-          } else {
-              if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
           }
       } 
       return true; 
@@ -816,13 +814,16 @@ function update(dt) {
       dPond = state.pond.r + state.player.r - 5;
   }
 
+// KIYIDA BALIK TUTMA
   let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; 
-  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday) {
+  let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+
+  // EĞER çanta dolu DEĞİLSE balık tutmaya başla (Bar dolsun)
+  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday && currentCarry < state.maxCarry) {
       state.pond.fishProgress += dt;
       if (state.pond.fishProgress >= reqFishTime) {
           state.pond.fishProgress = 0;
           state.pond.fishCaughtToday = true;
-          let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
           
           if (currentFishingTier >= 2 && Math.random() < 0.20) {
               state.sessionGoldenWood += 10;
@@ -831,21 +832,18 @@ function update(dt) {
               state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "TREASURE! +10 🟡", life: 2.0, color: "#ffd700" });
               playSound(sounds.wood);
           } else {
-              if(currentCarry < state.maxCarry) {
-                  if (currentFishingTier >= 3) {
-                      state.carried.blue_fish++;
-                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
-                  } else {
-                      state.carried.fish++;
-                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
-                  }
+              if (currentFishingTier >= 3) {
+                  state.carried.blue_fish++;
+                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
               } else {
-                  state.pond.fishCaughtToday = false;
-                  if(Math.random() < 0.1) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
+                  state.carried.fish++;
+                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
               }
           }
       }
-  } else { state.pond.fishProgress = 0;
+  } else { 
+      // Çanta doluysa veya hareket ediyorsa barı gizle / sıfırla
+      state.pond.fishProgress = 0;
   }
 
   if (!state.cookTimer) state.cookTimer = 0;
