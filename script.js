@@ -73,13 +73,17 @@ const state = {
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
-  maxWood: 5, sessionGoldenWood: 0, 
+  
+  maxCarry: 3, 
+  carried: { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0 },
+  tentStorage: { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 },
+  
+  sessionGoldenWood: 0, 
   
   isMuted: localStorage.getItem("campfireMuted") === "true",
   bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0, fireEaterSpawnTimer: 0,
-  bagWood: 0, score: 0, health: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
+  score: 0, health: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
   
-  inventory: { apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 },
   equippedFood: null,
   equippedCount: 0,
   apples: [],
@@ -87,20 +91,37 @@ const state = {
   cookTimer: 0
 };
 
+window.depositItems = function(event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    let deposited = false;
+    for (let key in state.carried) {
+        if (state.carried[key] > 0) {
+            state.tentStorage[key] += state.carried[key];
+            state.carried[key] = 0;
+            deposited = true;
+        }
+    }
+    if (deposited) {
+        playSound(sounds.wood);
+        state.floatingTexts.push({ x: state.tent.x, y: state.tent.y - 40, text: "DEPOSITED!", life: 1.5, color: "#4ade80" });
+        updateHud();
+    }
+};
+
 window.equipFood = function(type, event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     
     if (state.equippedFood && state.equippedFood !== type) {
-        state.inventory[state.equippedFood] += state.equippedCount;
+        state.tentStorage[state.equippedFood] += state.equippedCount;
         state.equippedFood = null;
         state.equippedCount = 0;
     }
     
-    if (state.inventory[type] > 0) {
+    if (state.tentStorage[type] > 0) {
         state.equippedFood = type;
         if (!state.equippedCount) state.equippedCount = 0;
         state.equippedCount++;
-        state.inventory[type]--;
+        state.tentStorage[type]--;
         state.cookTimer = 0; 
         playSound(sounds.wood);
         updateHud(); 
@@ -179,10 +200,7 @@ style.innerHTML = `
   .bar-fill { height: 100%; transition: width 0.2s ease-out; }
   .health-fill { background: linear-gradient(90deg, #c53030, #fc8181); }
   .fire-fill { background: linear-gradient(90deg, #ff4500, #ff8c00); }
-  .wood-container { display: flex; align-items: center; justify-content: center; gap: 3px; background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 6px; border: 1px solid #4a5568; min-width: 185px; }
-  .wood-label { color: #fff; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 2px #000; margin-right: 6px; }
-  .wood-icon { width: 14px; height: 8px; fill: #d2b48c; opacity: 0.2; transition: opacity 0.2s; }
-  .wood-icon.active { opacity: 1; fill: #a0522d; }
+  .bag-container { display: flex; flex-direction: column; justify-content: center; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 6px; border: 1px solid #4a5568; min-width: 150px; }
   .time-container { position: relative; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; }
   .time-icon { position: absolute; width: 24px; height: 24px; transition: opacity 0.5s; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)); }
   .score-text { font-size: 13px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 6px; border: 1px solid #4a5568; margin-top: 6px; text-align: center; line-height: 1.4; }
@@ -192,7 +210,6 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-const SVG_WOOD = '<svg class="wood-icon" viewBox="0 0 100 60"><rect x="10" y="20" width="80" height="20" rx="10"/></svg>';
 const SVG_SUN = '<svg class="time-icon sun-icon" viewBox="0 0 100 100"><circle cx="50" cy="50" r="20" fill="yellow"/><path d="M50 0 V10 M50 90 V100 M0 50 H10 M90 50 H100 M15 15 L22 22 M78 78 L85 85 M15 85 L22 78 M78 15 L85 22" stroke="yellow" stroke-width="5"/></svg>';
 const SVG_MOON = '<svg class="time-icon moon-icon" viewBox="0 0 100 100"><path d="M50 10 A40 40 0 1 0 90 50 A30 30 0 1 1 50 10 Z" fill="white"/></svg>';
 const SVG_BLOOD_MOON = '<svg class="time-icon blood-moon-icon" viewBox="0 0 100 100"><path d="M50 10 A40 40 0 1 0 90 50 A30 30 0 1 1 50 10 Z" fill="#ff2a2a" filter="drop-shadow(0px 0px 5px rgba(255,0,0,0.8))"/></svg>';
@@ -201,7 +218,7 @@ const topRow = document.createElement("div"); topRow.className = "hud-row";
 const bottomRow = document.createElement("div"); bottomRow.className = "hud-row";
 
 const UPGRADE_DATA = {
-  backpack: [{ level: 1, capacity: 10, cost: 150 }, { level: 2, capacity: 15, cost: 450 }, { level: 3, capacity: 20, cost: 1200 }],
+  backpack: [{ level: 1, capacity: 6, cost: 150 }, { level: 2, capacity: 10, cost: 450 }, { level: 3, capacity: 15, cost: 1200 }],
   pet: [{ level: 1, speed: 190, cost: 300 }, { level: 2, speed: 230, cost: 700 }],
   fireShield: [{ level: 1, cost: 200 }, { level: 2, cost: 500 }, { level: 3, cost: 1000 }],
   fishing: [{ level: 1, cost: 300 }, { level: 2, cost: 800 }, { level: 3, cost: 1500 }]
@@ -212,13 +229,34 @@ let currentPetTier = parseInt(localStorage.getItem("campfirePetTier")) || 0;
 let currentFireShieldTier = parseInt(localStorage.getItem("campfireFireShieldTier")) || 0;
 let currentFishingTier = parseInt(localStorage.getItem("campfireFishingTier")) || 0;
 
-function updateMaxWoodCapacity() { if (currentBackpackTier === 0) { state.maxWood = 5; } else { state.maxWood = UPGRADE_DATA.backpack[currentBackpackTier - 1].capacity; } }
+function updateMaxCarryCapacity() { 
+    if (currentBackpackTier === 0) { state.maxCarry = 3; } 
+    else { state.maxCarry = UPGRADE_DATA.backpack[currentBackpackTier - 1].capacity; } 
+}
 function updatePetStats() { if (currentPetTier === 0) { state.pet.speed = 155; } else if (currentPetTier === 1) { state.pet.speed = 190; } else if (currentPetTier === 2) { state.pet.speed = 230; } }
 
-updateMaxWoodCapacity(); updatePetStats();
+updateMaxCarryCapacity(); updatePetStats();
 
-function renderWoodIcons() { let html = '<span class="wood-label">🪵</span>'; for(let i=0; i<state.maxWood; i++) html += SVG_WOOD; return html; }
-const woodWrap = document.createElement("div"); woodWrap.className = "wood-container"; woodWrap.id = "woodIconsWrapper"; woodWrap.innerHTML = renderWoodIcons(); topRow.appendChild(woodWrap);
+function renderBagIcons() { 
+    let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+    let isFull = currentCarry >= state.maxCarry;
+    let html = `
+        <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+            <span style="font-size:16px;">🎒 <span style="color:${isFull ? '#ff4a4a' : '#fff'}; font-weight:bold;">${currentCarry}/${state.maxCarry}</span></span>
+        </div>
+        <div style="display:flex; justify-content:center; gap:6px; font-size:12px; margin-top:2px;">
+    `;
+    if(state.carried.wood > 0) html += `<span>🪵${state.carried.wood}</span>`;
+    if(state.carried.apple > 0) html += `<span>🍎${state.carried.apple}</span>`;
+    if(state.carried.mushroom > 0) html += `<span>🍄${state.carried.mushroom}</span>`;
+    if(state.carried.fish > 0) html += `<span>🐟${state.carried.fish}</span>`;
+    if(state.carried.blue_fish > 0) html += `<span>💎🐟${state.carried.blue_fish}</span>`;
+    if(currentCarry === 0) html += `<span style="color:#aaa;">Empty</span>`;
+    html += `</div>`;
+    return html; 
+}
+
+const bagWrap = document.createElement("div"); bagWrap.className = "bag-container"; bagWrap.id = "bagWrapper"; bagWrap.innerHTML = renderBagIcons(); topRow.appendChild(bagWrap);
 const timeWrap = document.createElement("div"); timeWrap.className = "time-container"; timeWrap.innerHTML = SVG_SUN + SVG_MOON + SVG_BLOOD_MOON; topRow.appendChild(timeWrap);
 
 const pauseBtnWrap = document.createElement("div"); pauseBtnWrap.className = "pause-btn"; pauseBtnWrap.innerHTML = "⏸"; pauseBtnWrap.id = "hudPauseBtn"; topRow.appendChild(pauseBtnWrap);
@@ -336,9 +374,10 @@ function updateHud() {
   const fireBar = document.getElementById("fireBar"); if (fireBar) fireBar.style.width = Math.max(0, state.fire.level) + "%";
   const hBar = document.getElementById("healthBar");
   if (hBar) hBar.style.width = Math.max(0, state.health) + "%";
-  const wWrap = document.getElementById("woodIconsWrapper");
-  if (wWrap) { const icons = wWrap.querySelectorAll(".wood-icon");
-  icons.forEach((icon, index) => { if (index < state.bagWood) icon.classList.add("active"); else icon.classList.remove("active"); }); }
+  
+  const bWrap = document.getElementById("bagWrapper");
+  if (bWrap) { bWrap.innerHTML = renderBagIcons(); }
+
   const sIcon = document.querySelector(".sun-icon");
   const mIcon = document.querySelector(".moon-icon:not(.blood-moon-icon)"); const bmIcon = document.querySelector(".blood-moon-icon");
   if (sIcon && mIcon && bmIcon) { 
@@ -354,26 +393,27 @@ function updateHud() {
   
   const tMenu = document.getElementById("tentMenu");
   if (tMenu) {
-      // Çadırın giriş kapısının koordinatını belirliyoruz (Çadır merkezinin biraz altı)
       const entrancePos = { x: state.tent.x, y: state.tent.y + 35 };
-      
-      // EĞER OYUN BİTTİYSE VEYA OYUNCU KAPIDA DEĞİLSE MENÜYÜ GİZLE
       if (state.gameOver || dist(state.player, entrancePos) > 40) {
           tMenu.classList.add("hidden-fade");
       } else {
-          tMenu.classList.remove("hidden-fade"); 
+          tMenu.classList.remove("hidden-fade");
           
-          const newTentHTML = `
-              <div class="tent-item" onpointerdown="equipFood('apple', event)">🍎 ${state.inventory.apple}</div>
-              <div class="tent-item" onpointerdown="equipFood('mushroom', event)">🍄 ${state.inventory.mushroom}</div>
-              <div class="tent-item" onpointerdown="equipFood('fish', event)">🐟 ${state.inventory.fish}</div>
-              ${state.inventory.blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('blue_fish', event)">💎🐟 ${state.inventory.blue_fish}</div>` : ""}
-              ${state.inventory.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.inventory.cooked_blue_fish}</div>` : ""}
-              ${state.inventory.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.inventory.cooked_mushroom}</div>` : ""}
-              ${state.inventory.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.inventory.cooked_fish}</div>` : ""}
-              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71;" onpointerdown="packCampAndLeave(event)">🏕️ PACK CAMP</div>
+          const hasCarriedItems = Object.values(state.carried).reduce((a,b)=>a+b, 0) > 0;
+          let depositBtn = hasCarriedItems 
+            ? `<div class="tent-item" style="background: rgba(52, 152, 219, 0.4); border: 1px solid #3498db; width: 100%; margin-bottom: 5px;" onpointerdown="depositItems(event)">📥 DEPOSIT ALL</div>` 
+            : "";
+
+          const newTentHTML = depositBtn + `
+              <div class="tent-item" onpointerdown="equipFood('apple', event)">🍎 ${state.tentStorage.apple}</div>
+              <div class="tent-item" onpointerdown="equipFood('mushroom', event)">🍄 ${state.tentStorage.mushroom}</div>
+              <div class="tent-item" onpointerdown="equipFood('fish', event)">🐟 ${state.tentStorage.fish}</div>
+              ${state.tentStorage.blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('blue_fish', event)">💎🐟 ${state.tentStorage.blue_fish}</div>` : ""}
+              ${state.tentStorage.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.tentStorage.cooked_blue_fish}</div>` : ""}
+              ${state.tentStorage.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.tentStorage.cooked_mushroom}</div>` : ""}
+              ${state.tentStorage.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.tentStorage.cooked_fish}</div>` : ""}
+              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-top: 5px; width: 100%;" onpointerdown="packCampAndLeave(event)">🏕️ PACK CAMP</div>
           `;
-          
           if (tMenu.innerHTML !== newTentHTML) {
               tMenu.innerHTML = newTentHTML;
           }
@@ -397,35 +437,64 @@ const half = getPlayerDrawSize() * 0.5; state.player.x = Math.min(w - half, Math
 state.player.y = Math.min(h - half, Math.max(half, state.player.y || half)); }
 
 function collectItems() {
-  let wCollected = 0;
-  let goldenCollected = 0;
-  state.woods = state.woods.filter((wood) => { if (dist(state.player, wood) <= state.player.r + wood.r) { if (wood.isGolden) goldenCollected++; else wCollected++; playSound(sounds.wood); return false; } return true; });
-  let totalWood = wCollected + (goldenCollected * 5);
-  if (totalWood > 0) { const spaceLeft = state.maxWood - state.bagWood;
-  const actualCollected = Math.min(totalWood, spaceLeft); state.bagWood += actualCollected; state.score += (wCollected * 5) + (goldenCollected * 50);
-  state.pendingWoodRespawns += (wCollected + goldenCollected); if (goldenCollected > 0) { state.sessionGoldenWood += goldenCollected;
-  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" });
-  } }
+  let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+
+  state.woods = state.woods.filter((wood) => { 
+      if (dist(state.player, wood) <= state.player.r + wood.r) { 
+          if (wood.isGolden) {
+              state.sessionGoldenWood++;
+              state.score += 50;
+              playSound(sounds.wood);
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" });
+              state.pendingWoodRespawns++;
+              return false;
+          } else {
+              if (currentCarry < state.maxCarry) {
+                  state.carried.wood++;
+                  currentCarry++;
+                  state.score += 5;
+                  playSound(sounds.wood);
+                  state.pendingWoodRespawns++;
+                  return false;
+              } else {
+                  if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
+              }
+          }
+      } 
+      return true; 
+  });
   
   state.mushrooms = state.mushrooms.filter((m) => { 
       if (dist(state.player, m) <= state.player.r + m.r) { 
-          state.inventory.mushroom++; 
-          playSound(sounds.wood); 
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
-          state.pendingMushroomRespawns++;
-          return false; 
+          if (currentCarry < state.maxCarry) {
+              state.carried.mushroom++; 
+              currentCarry++;
+              playSound(sounds.wood); 
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍄", life: 1.5, color: "#ff4a4a" }); 
+              state.pendingMushroomRespawns++;
+              return false; 
+          } else {
+              if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
+          }
       } 
       return true; 
   });
+
   state.apples = state.apples.filter((a) => { 
       if (dist(state.player, a) <= state.player.r + a.r) { 
-          state.inventory.apple++; 
-          playSound(sounds.wood); 
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
-          return false; 
+          if (currentCarry < state.maxCarry) {
+              state.carried.apple++; 
+              currentCarry++;
+              playSound(sounds.wood); 
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
+              return false; 
+          } else {
+              if(Math.random() < 0.05) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
+          }
       } 
       return true; 
   });
+
   if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { 
       state.superModeTimer = 8.0; playSound(sounds.feed);
       state.score += 100; 
@@ -485,11 +554,25 @@ function feedFire() {
   }
 
   const inRange = dist(state.player, state.fire) < state.player.r + state.fire.r + 20;
-  if (!inRange || state.bagWood <= 0) {
+  if (!inRange) return;
+
+  // Ateşi ana stoktan besle, stokta yoksa çantadan besle
+  let usedWood = false;
+  if (state.tentStorage.wood > 0) {
+      state.tentStorage.wood--;
+      usedWood = true;
+  } else if (state.carried.wood > 0) {
+      state.carried.wood--;
+      usedWood = true;
+  }
+
+  if (!usedWood) {
     if (state.equippedFood === "fish" || state.equippedFood === "blue_fish") {
       state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NEEDS COOKING!", life: 1.5, color: "#ff4a4a" });
+    } else {
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NO WOOD!", life: 1.0, color: "#ff4a4a" });
     }
-      return;
+    return;
   }
   
   if (state.fire.level <= 0) { spawnSmoke(state.fire.x, state.fire.y, 12);
@@ -498,7 +581,7 @@ function feedFire() {
       state.floatingTexts.push({ x: state.fire.x, y: state.fire.y - 40, text: "CLOSE CALL! +50", life: 2.0, color: "#ffd700" });
   }
   spawnSparks(state.fire.x, state.fire.y, 15);
-  state.bagWood -= 1; state.fire.level = Math.min(100, state.fire.level + 18); state.score += 10;
+  state.fire.level = Math.min(100, state.fire.level + 18); state.score += 10;
   playSound(sounds.feed); updateHud();
 }
 
@@ -551,10 +634,23 @@ function updatePet(dt) {
     } }
     if (state.pet.isFetching && !state.pet.hasWood) { state.pet.isSitting = false;
         if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false;
-    } } else if (state.pet.hasWood) { state.pet.targetX = state.player.x; state.pet.targetY = state.player.y; state.pet.isSitting = false;
-        if (dToPlayer < 40) { if (state.bagWood < state.maxWood) { state.bagWood++; state.score += 5; playSound(sounds.wood);
-        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 WOOD", life: 1.5, color: "#d2b48c" }); updateHud(); } state.pet.hasWood = false;
-        state.pet.fetchTimer = 20 + Math.random() * 20; } } else { if (dToPlayer > 50) { state.pet.targetX = state.player.x;
+    } } else if (state.pet.hasWood) { 
+        // Köpek odunu oyuncuya değil, ÇADIRA (Ana Üsse) taşır!
+        state.pet.targetX = state.tent.x + 40; 
+        state.pet.targetY = state.tent.y + 20; 
+        state.pet.isSitting = false;
+        
+        if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 30) { 
+            state.tentStorage.wood++; 
+            state.score += 5; 
+            playSound(sounds.wood);
+            state.floatingTexts.push({ x: state.pet.x, y: state.pet.y - 20, text: "STORED 🪵", life: 1.5, color: "#d2b48c" }); 
+            updateHud(); 
+            state.pet.hasWood = false;
+            state.pet.fetchTimer = 20 + Math.random() * 20; 
+        } 
+    } else { 
+        if (dToPlayer > 50) { state.pet.targetX = state.player.x;
         state.pet.targetY = state.player.y; state.pet.isSitting = false; isJustFollowingPlayer = true; } else if (dToPlayer < 40) { state.pet.isSitting = true;
     } }
   }
@@ -726,6 +822,8 @@ function update(dt) {
       if (state.pond.fishProgress >= reqFishTime) {
           state.pond.fishProgress = 0;
           state.pond.fishCaughtToday = true;
+          let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+          
           if (currentFishingTier >= 2 && Math.random() < 0.20) {
               state.sessionGoldenWood += 10;
               let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
@@ -733,12 +831,17 @@ function update(dt) {
               state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "TREASURE! +10 🟡", life: 2.0, color: "#ffd700" });
               playSound(sounds.wood);
           } else {
-              if (currentFishingTier >= 3) {
-                  state.inventory.blue_fish++;
-                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+              if(currentCarry < state.maxCarry) {
+                  if (currentFishingTier >= 3) {
+                      state.carried.blue_fish++;
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+                  } else {
+                      state.carried.fish++;
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                  }
               } else {
-                  state.inventory.fish++;
-                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                  state.pond.fishCaughtToday = false;
+                  if(Math.random() < 0.1) state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "BAG FULL!", life: 1.0, color: "#ff4a4a" });
               }
           }
       }
@@ -1148,25 +1251,21 @@ function drawEnvironment() {
   ctx.ellipse(state.fire.x, state.fire.y - 20, 170, 100, 0, 0, Math.PI * 2); ctx.fill();
   state.trees.forEach(tree => { ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); });
   
-  // --- YENİ BÜYÜK GÖLET VE SU EFEKTİ ÇİZİMİ ---
   ctx.save();
   const px = state.pond.x; 
   const py = state.pond.y;
   const baseR = state.pond.r; 
 
-  // 1. Katman: Derin Su (Koyu Mavi Taban)
   ctx.fillStyle = "rgba(10, 30, 60, 0.9)"; 
   ctx.beginPath();
   ctx.moveTo(px, py); 
   ctx.arc(px, py, baseR, 0, Math.PI * 2); 
   ctx.fill();
-  // 2. Katman: Yüzey Suyu (Biraz daha açık mavi)
   ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
   ctx.beginPath();
   ctx.moveTo(px, py);
   ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
   ctx.fill();
-  // 3. Katman: Su Efekti (Hareketli Işık Parıltıları)
   const time = performance.now() * 0.001; 
   ctx.globalCompositeOperation = "screen";
   for (let i = 0; i < 3; i++) {
@@ -1182,7 +1281,6 @@ function drawEnvironment() {
   }
   ctx.restore();
   
-  // --- YENİ: ZIPLAYAN CANLI BALIK EFEKTİ ---
   if (!state.pond.fishCaughtToday) {
     ctx.save();
     const cx = px + baseR * 0.45; 
@@ -1248,6 +1346,20 @@ function drawTent() {
   ctx.lineTo(tx - 85, ty + 50); ctx.moveTo(tx + 65, ty + 35);
   ctx.lineTo(tx + 85, ty + 50); ctx.stroke();
   ctx.fillStyle = "#95a5a6"; ctx.beginPath(); ctx.arc(tx, ty - 60, 3, 0, Math.PI*2); ctx.fill();
+  
+  // Çadırın yanına biriken odun yığını (Görsel Depo)
+  let stack = Math.min(15, state.tentStorage.wood);
+  if(stack > 0) {
+      ctx.save();
+      const pileX = tx + 45;
+      const pileY = ty + 25;
+      for(let i=0; i<stack; i++) {
+          let row = Math.floor(i / 5);
+          let col = i % 5;
+          drawWoodItem(pileX + col * 6, pileY - row * 5, 0, false);
+      }
+      ctx.restore();
+  }
 }
 
 function drawFireLight() {
@@ -1535,15 +1647,17 @@ function draw() {
 function resetGame() {
     state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false;
     state.score = 0;
-    state.health = 100; state.bagWood = 0; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
+    state.health = 100; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
     state.sessionGoldenWood = 0;
     
-    updateMaxWoodCapacity();
+    state.carried = { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0 };
+    state.tentStorage = { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 };
+    
+    updateMaxCarryCapacity();
     updatePetStats();
     
-    const wWrap = document.getElementById("woodIconsWrapper");
-    if (wWrap) { wWrap.innerHTML = renderWoodIcons();
-    }
+    const bWrap = document.getElementById("bagWrapper");
+    if (bWrap) { bWrap.innerHTML = renderBagIcons(); }
     
     stopAudio(); 
     if(document.getElementById("hudPauseBtn")) { 
@@ -1723,11 +1837,11 @@ function renderUpgradesMenu() {
     const uMenu = document.getElementById("upgradesMenu");
     
     let bpButtonHTML = "";
-    let bpDescHTML = "Current Capacity: 5 <br> Next: <span style='color:#ffd700'>10 Wood</span>";
+    let bpDescHTML = "Current Capacity: 3 <br> Next: <span style='color:#ffd700'>6 Slots</span>";
     if (currentBackpackTier === 0) { bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 150</button>`; }
-    else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
-    else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 15 <br> Next: <span style='color:#ffd700'>20 Wood</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`; }
-    else { bpDescHTML = "Current Capacity: 20 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
+    else if (currentBackpackTier === 1) { bpDescHTML = "Current Capacity: 6 <br> Next: <span style='color:#ffd700'>10 Slots</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 450</button>`; }
+    else if (currentBackpackTier === 2) { bpDescHTML = "Current Capacity: 10 <br> Next: <span style='color:#ffd700'>15 Slots</span>"; bpButtonHTML = `<button class="buy-btn" onclick="buyBackpackUpgrade()">💰 1200</button>`; }
+    else { bpDescHTML = "Current Capacity: 15 <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; bpButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
     let petButtonHTML = "";
     let petDescHTML = "Sleeps at night. <br> Next: <span style='color:#ffd700'>Watchdog (Lv. 1)</span>";
@@ -1758,7 +1872,7 @@ function renderUpgradesMenu() {
         <div class="shop-container">
             <div class="shop-card">
                 <div class="card-info">
-                    <h3>Wood Backpack (Lv. ${currentBackpackTier})</h3>
+                    <h3>Inventory Backpack (Lv. ${currentBackpackTier})</h3>
                     <p>${bpDescHTML}</p>
                 </div>
                 <div class="button-container">${bpButtonHTML}</div>
@@ -1807,9 +1921,9 @@ window.buyBackpackUpgrade = function() {
         localStorage.setItem("campfireGoldenWood", totalGold);
         currentBackpackTier++;
         localStorage.setItem("backpackTier", currentBackpackTier);
-        updateMaxWoodCapacity();
-        const wWrap = document.getElementById("woodIconsWrapper");
-        if (wWrap) wWrap.innerHTML = renderWoodIcons();
+        updateMaxCarryCapacity();
+        const bWrap = document.getElementById("bagWrapper");
+        if (bWrap) bWrap.innerHTML = renderBagIcons();
         renderUpgradesMenu();
         if(sounds && sounds.buy) sounds.buy.play();
     } else { showShopNotification("Not enough Golden Wood! Keep surviving."); }
