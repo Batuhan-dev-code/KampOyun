@@ -250,7 +250,7 @@ const state = {
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
-  leafPiles: [], leafParticles: [], leafSpawnTimer: 0,
+  leafPiles: [], leafParticles: [], leafSpawnTimer: 0, pondLeaves: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
   maxCarry: 3, 
@@ -1081,6 +1081,16 @@ function update(dt) {
           searchingPile.progress += dt;
           if(searchingPile.progress >= 2.5) {
               searchingPile.searched = true;
+              
+              if(searchingPile.content === "dog" && state.currentDay < 3) {
+                  let unsearched = state.leafPiles.filter(p => !p.searched && p !== searchingPile);
+                  if(unsearched.length > 0) {
+                      let newDogPile = unsearched[Math.floor(Math.random() * unsearched.length)];
+                      newDogPile.content = "dog";
+                      searchingPile.content = Math.random() > 0.5 ? "wood" : "empty";
+                  }
+              }
+              
               if(searchingPile.content === "dog") {
                   state.dogRescued = true;
                   state.pet.x = searchingPile.x;
@@ -1563,22 +1573,25 @@ function drawLeafPiles() {
     state.leafPiles.forEach(p => {
         ctx.save();
         ctx.translate(p.x, p.y);
+        let wobble = (!p.searched && state.windDuration > 0) ? Math.sin(performance.now() * 0.005 + p.x) * 2 : 0;
+        
         if(p.searched) {
-            ctx.globalAlpha = 0.5;
-            for(let i=0; i<5; i++) {
-                ctx.fillStyle = (i%2===0)?"#a0522d":"#8b4513";
-                ctx.beginPath(); ctx.ellipse(Math.cos(i)*15, Math.sin(i)*15, 6, 3, i, 0, Math.PI*2); ctx.fill();
-            }
-        } else {
-            let wobble = Math.sin(performance.now() * 0.005 + p.x) * 2;
-            if(state.windDuration <= 0) wobble = 0;
-            ctx.fillStyle = "#8b4513";
-            ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r*0.7, 0, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = "#a0522d";
-            ctx.beginPath(); ctx.ellipse(0, -3 + wobble, p.r*0.8, p.r*0.5, 0.2, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = "#cd853f";
-            ctx.beginPath(); ctx.ellipse(0, -6 + wobble, p.r*0.5, p.r*0.3, -0.1, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha = 0.4;
+            wobble = 0;
         }
+        
+        p.leaves.forEach(l => {
+            ctx.save();
+            ctx.translate(l.dx, l.dy + wobble);
+            ctx.rotate(l.ang);
+            ctx.fillStyle = l.col;
+            ctx.beginPath();
+            ctx.moveTo(-5, 0);
+            ctx.quadraticCurveTo(0, -3, 5, 0);
+            ctx.quadraticCurveTo(0, 3, -5, 0);
+            ctx.fill();
+            ctx.restore();
+        });
         ctx.restore();
 
         if(!p.searched && p.progress > 0) {
@@ -1656,6 +1669,25 @@ function drawEnvironment() {
       ctx.stroke();
   }
   ctx.restore();
+  
+  // Gölet Üzerindeki Yapraklar
+  if (state.pondLeaves && isAutumn) {
+      state.pondLeaves.forEach(pl => {
+          ctx.save();
+          let currentAng = pl.ang + time * 0.2 * pl.rotDir;
+          let lx = px + Math.cos(currentAng) * pl.dist;
+          let ly = py + Math.sin(currentAng) * pl.dist;
+          ctx.translate(lx, ly);
+          ctx.rotate(currentAng * 2);
+          ctx.fillStyle = pl.col;
+          ctx.beginPath();
+          ctx.moveTo(-4, 0);
+          ctx.quadraticCurveTo(0, -2, 4, 0);
+          ctx.quadraticCurveTo(0, 2, -4, 0);
+          ctx.fill();
+          ctx.restore();
+      });
+  }
   
   if (!state.pond.fishCaughtToday) {
     ctx.save();
@@ -2054,6 +2086,7 @@ function resetState() {
     state.enemies = []; state.raccoons = []; state.smokeParticles = []; state.sparks = [];
     state.floatingTexts = []; state.playerTrails = []; state.windParticles = []; state.rainDrops = [];
     state.leafParticles = []; state.leafSpawnTimer = 0; state.leafPiles = [];
+    state.pondLeaves = [];
     state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0;
     state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; state.blueMushroomTimer = 30 + Math.random() * 30; state.superModeTimer = 0; state.raccoonSpawnTimer = 15;
     state.windTimer = 20 + Math.random() * 30; state.windDuration = 0; state.rainTimer = 30 + Math.random() * 40; state.rainDuration = 0;
@@ -2064,6 +2097,17 @@ function resetState() {
             state.dogRescued = false;
         } else if (state.currentLevel === 2) {
             state.dogRescued = false;
+            
+            // Gölet yapraklarını oluştur
+            for(let i=0; i<5; i++) {
+                state.pondLeaves.push({
+                    ang: Math.random() * Math.PI * 2,
+                    dist: 10 + Math.random() * 35,
+                    rotDir: Math.random() > 0.5 ? 1 : -1,
+                    col: ["#8b4513", "#a0522d", "#cd853f"][Math.floor(Math.random() * 3)]
+                });
+            }
+
             let pileCoords = [];
             for (let i=0; i<6; i++) {
                 let angle = Math.random() * Math.PI * 2;
@@ -2073,7 +2117,19 @@ function resetState() {
                 px = Math.max(50, Math.min((canvas.clientWidth || 800) - 50, px));
                 py = Math.max(50, Math.min((canvas.clientHeight || 600) - 50, py));
                 if(isPointInPond(px, py)) { py -= 150; }
-                pileCoords.push({ x: px, y: py, r: 25, progress: 0, searched: false, content: "empty" });
+                
+                // Daha gerçekçi yığınlar için rastgele yaprak koordinatları üret
+                let leaves = [];
+                for(let j=0; j<18; j++) {
+                    leaves.push({
+                        dx: (Math.random()-0.5) * 35,
+                        dy: (Math.random()-0.5) * 20,
+                        ang: Math.random() * Math.PI * 2,
+                        col: ["#8b4513", "#a0522d", "#cd853f", "#d2691e"][Math.floor(Math.random()*4)]
+                    });
+                }
+                
+                pileCoords.push({ x: px, y: py, r: 25, progress: 0, searched: false, content: "empty", leaves: leaves });
             }
             let dogIndex = Math.floor(Math.random() * pileCoords.length);
             pileCoords[dogIndex].content = "dog";
