@@ -1,6 +1,9 @@
 // ====== GEÇİCİ TEST KODU ======
 // Altın hilesini açmak için aşağıdaki satırın başındaki "//" işaretlerini sil.
 // localStorage.setItem("campfireGoldenWood", 5000);
+
+// Direk 2. Bölümden başlamak için aşağıdaki satırı ekledik:
+localStorage.setItem("campfireCurrentStoryLevel", 2);
 // =======================================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -10,6 +13,125 @@ const tintCanvas = document.createElement("canvas");
 const tintCtx = tintCanvas.getContext("2d"); 
 
 const hudEl = document.querySelector(".hud");
+
+// --- ÇOKLU DİL (i18n) SİSTEMİ ---
+let currentLang = localStorage.getItem("campfireLang");
+if (!currentLang) {
+    currentLang = navigator.language.toLowerCase().startsWith("tr") ? "tr" : "en";
+}
+
+const I18N = {
+    en: {
+        btnStory: "📖 STORY MODE",
+        btnStoryCont: "📖 CONTINUE STORY",
+        btnSurvival: "🏕️ SURVIVAL MODE",
+        btnLocked: "🔒 SURVIVAL (LOCKED)",
+        btnScores: "SCORES",
+        btnUpgrades: "🟡 UPGRADES",
+        intro1Title: "CHAPTER 1: THE WRECKAGE",
+        intro1Text: "My plane crashed... I'm lucky to be alive, but the radio is shattered. The map shows an old communication tower in the snowy mountains to the North. I must reach it, but first I need to gather my strength. I must survive for at least 3 days, pack my camp, and set off.",
+        intro2Title: "CHAPTER 2: THE HOWL",
+        intro2Text: "I've passed the forest, but the wind at the foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
+        clickToContinue: "- CLICK TO CONTINUE -",
+        tooDangerous: "TOO DANGEROUS NOW!",
+        notReady: "NOT READY TO TRAVEL YET!",
+        mustRescueDog: "CAN'T LEAVE WITHOUT MY DOG!",
+        dogRescued: "FRIEND RESCUED!",
+        bagFull: "BAG FULL!",
+        deposited: "DEPOSITED!",
+        stored: "STORED 🪵",
+        noWood: "NO WOOD!",
+        needsCooking: "NEEDS COOKING!",
+        cooked: "COOKED!",
+        superMode: "SUPER MODE!",
+        fireDrained: "FIRE DRAINED!",
+        defended: "DEFENDED!",
+        stunned: "STUNNED!",
+        treasure: "TREASURE! +10 🟡",
+        closeCall: "CLOSE CALL! +50",
+        safelyExtracted: "SAFELY EXTRACTED!",
+        lvl1Complete: "CHAPTER 1 COMPLETED!",
+        lvl2Complete: "CHAPTER 2 COMPLETED!",
+        day: "Day",
+        score: "Score",
+        empty: "Empty",
+        depositAll: "📥 DEPOSIT ALL",
+        packCamp: "🏕️ PACK CAMP",
+        feedFire: "FEED FIRE",
+        eat: "EAT",
+        fishing: "Fishing...",
+        cooking: "Cooking...",
+        searching: "Searching...",
+        leafEmpty: "EMPTY",
+        leafWood: "FOUND WOOD!",
+        leafRaccoon: "AMBUSH!",
+        survived: "SURVIVED",
+        bloodMoonRises: "THE BLOOD MOON RISES...",
+        bloodMoonSurvived: "BLOOD MOON SURVIVED!",
+        goldenWoodSaved: "Golden Wood Saved!",
+        statsTitle: "CAREER STATS",
+        back: "BACK",
+        resume: "RESUME",
+        mainMenu: "MAIN MENU"
+    },
+    tr: {
+        btnStory: "📖 HİKAYE MODU",
+        btnStoryCont: "📖 HİKAYEYE DEVAM ET",
+        btnSurvival: "🏕️ SONSUZ MOD",
+        btnLocked: "🔒 SONSUZ MOD (KİLİTLİ)",
+        btnScores: "SKORLAR",
+        btnUpgrades: "🟡 YETENEKLER",
+        intro1Title: "BÖLÜM 1: ENKAZ",
+        intro1Text: "Uçağım düştü... Şanslıyım ki hayattayım ama telsiz parçalandı. Haritaya göre Kuzeydeki karlı dağlarda eski bir iletişim kulesi var. Oraya ulaşmalıyım ama önce toparlanmam lazım. En az 3 gün hayatta kalıp, kampı toplayarak yola çıkmalıyım.",
+        intro2Title: "BÖLÜM 2: ULUMA",
+        intro2Text: "Ormanı aştım ama dağların eteklerinde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
+        clickToContinue: "- DEVAM ETMEK İÇİN TIKLA -",
+        tooDangerous: "ŞU AN ÇOK TEHLİKELİ!",
+        notReady: "HENÜZ YOLA ÇIKMAYA HAZIR DEĞİLSİN!",
+        mustRescueDog: "KÖPEĞİMİ BURADA BIRAKAMAM!",
+        dogRescued: "DOST KURTARILDI!",
+        bagFull: "ÇANTA DOLU!",
+        deposited: "DEPOLANDI!",
+        stored: "DEPOLANDI 🪵",
+        noWood: "ODUN YOK!",
+        needsCooking: "PİŞİRİLMELİ!",
+        cooked: "PİŞTİ!",
+        superMode: "SÜPER MOD!",
+        fireDrained: "ATEŞ SÖNDÜRÜLDÜ!",
+        defended: "SAVUNULDU!",
+        stunned: "SERSEMLETİLDİ!",
+        treasure: "HAZİNE! +10 🟡",
+        closeCall: "UCUZ ATLATTI! +50",
+        safelyExtracted: "GÜVENLE KAÇILDI!",
+        lvl1Complete: "1. BÖLÜM TAMAMLANDI!",
+        lvl2Complete: "2. BÖLÜM TAMAMLANDI!",
+        day: "Gün",
+        score: "Skor",
+        empty: "Boş",
+        depositAll: "📥 HEPSİNİ DEPOLA",
+        packCamp: "🏕️ KAMPI TOPLA",
+        feedFire: "ATEŞİ BESLE",
+        eat: "YEMEK YE",
+        fishing: "Balık Tutuluyor...",
+        cooking: "Pişiriliyor...",
+        searching: "Aranıyor...",
+        leafEmpty: "BOŞ",
+        leafWood: "ODUN BULUNDU!",
+        leafRaccoon: "PUSU!",
+        survived: "HAYATTA KALDIN",
+        bloodMoonRises: "KANLI AY YÜKSELİYOR...",
+        bloodMoonSurvived: "KANLI AY ATLATILDI!",
+        goldenWoodSaved: "Altın Odun Kurtarıldı!",
+        statsTitle: "KARİYER STATLARIN",
+        back: "GERİ",
+        resume: "DEVAM ET",
+        mainMenu: "ANA MENÜ"
+    }
+};
+
+function t(key) {
+    return I18N[currentLang][key] || key;
+}
 
 const tentStyle = document.createElement('style');
 tentStyle.innerHTML = `
@@ -26,17 +148,67 @@ tentMenu.className = "hidden-fade";
 tentMenu.addEventListener("pointerdown", e => e.stopPropagation());
 document.querySelector(".game-shell").appendChild(tentMenu);
 
+const introUI = document.createElement("div");
+introUI.id = "introUI";
+introUI.className = "hidden";
+introUI.style.cssText = "position:absolute; top:0; left:0; width:100%; height:100%; background:#050505; color:#fff; z-index:1000; padding:20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; font-family:monospace;";
+document.querySelector(".game-shell").appendChild(introUI);
+
+let typingInterval;
+function playIntro(title, text, callback) {
+    document.getElementById("mainMenu").classList.add("hidden");
+    introUI.classList.remove("hidden");
+    introUI.innerHTML = `<h2 style="color:#ffd700; margin-bottom:20px; font-family:Arial;">${title}</h2><p id="introText" style="font-size:15px; line-height:1.6; max-width:85%; min-height:100px;"></p><div id="introClick" class="hidden" style="margin-top:40px; color:#aaa; cursor:pointer; font-weight:bold; font-family:Arial;">${t("clickToContinue")}</div>`;
+    
+    const textEl = document.getElementById("introText");
+    const clickEl = document.getElementById("introClick");
+    let i = 0;
+    
+    if(typingInterval) clearInterval(typingInterval);
+    
+    if (!state.isMuted) {
+        sounds.typewriter.currentTime = 0;
+        sounds.typewriter.play().catch(()=>{});
+    }
+    
+    const finishTyping = () => {
+        clearInterval(typingInterval);
+        textEl.textContent = text;
+        clickEl.classList.remove("hidden");
+        
+        sounds.typewriter.pause();
+        sounds.typewriter.currentTime = 0;
+        
+        introUI.onclick = () => {
+            introUI.onclick = null;
+            introUI.classList.add("hidden");
+            callback();
+        };
+    };
+    
+    typingInterval = setInterval(() => {
+        textEl.textContent += text.charAt(i);
+        i++;
+        if(i >= text.length) {
+            finishTyping();
+        }
+    }, 80);
+    
+    introUI.onclick = () => {
+        if(i < text.length) finishTyping();
+    };
+}
+
 if (!document.getElementById("pauseUI")) {
     const pUI = document.createElement("div");
     pUI.id = "pauseUI";
     pUI.className = "hidden";
     pUI.innerHTML = `
         <div class="pause-box">
-            <h2>PAUSED</h2>
-            <p>Are you sure you want to quit?<br><small style="color: #bbb;">(Your progress will be lost)</small></p>
+            <h2 id="pauseTitle">PAUSED</h2>
             <div class="menu-buttons pause-btns">
-                <button id="resumeBtn" class="menu-btn primary">RESUME</button>
-                <button id="quitBtn" class="menu-btn secondary">MAIN MENU</button>
+                <button id="resumeBtn" class="menu-btn primary"></button>
+                <button id="quitBtn" class="menu-btn secondary"></button>
             </div>
         </div>
     `;
@@ -61,17 +233,24 @@ const sounds = {
   bloodmoon: new Audio("assets/bloodmoon.mp3"),
   howl: new Audio("assets/howl.mp3"),
   eat: new Audio("assets/eat.mp3"),
-  buy: new Audio("assets/buy.mp3")
+  buy: new Audio("assets/buy.mp3"),
+  typewriter: new Audio("assets/typewriter.mp3")
 };
 sounds.fire.loop = true; sounds.day.loop = true; sounds.night.loop = true;
 sounds.wind.loop = true; sounds.rain.loop = true; sounds.bloodmoon.loop = true;
+sounds.typewriter.loop = true;
 let audioStarted = false;
 
 const state = {
-  status: "MENU", player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
+  status: "MENU", 
+  gameMode: "STORY", 
+  currentLevel: 1,
+  
+  player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
   woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
+  leafPiles: [], leafParticles: [], leafSpawnTimer: 0,
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
   maxCarry: 3, 
@@ -88,7 +267,9 @@ const state = {
   equippedCount: 0,
   apples: [],
   pond: { x: 0, y: 0, r: 55, fishProgress: 0, fishCaughtToday: false },
-  cookTimer: 0
+  cookTimer: 0,
+  
+  dogRescued: false
 };
 
 window.depositItems = function(event) {
@@ -103,7 +284,7 @@ window.depositItems = function(event) {
     }
     if (deposited) {
         playSound(sounds.wood);
-        state.floatingTexts.push({ x: state.tent.x, y: state.tent.y - 40, text: "DEPOSITED!", life: 1.5, color: "#4ade80" });
+        state.floatingTexts.push({ x: state.tent.x, y: state.tent.y - 40, text: t("deposited"), life: 1.5, color: "#4ade80" });
         updateHud();
     }
 };
@@ -132,8 +313,26 @@ window.packCampAndLeave = function(event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     
     if (isNight() || state.bloodMoonActive) {
-        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "TOO DANGEROUS NOW!", life: 2.0, color: "#ff4a4a" });
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("tooDangerous"), life: 2.0, color: "#ff4a4a" });
         return;
+    }
+    
+    if (state.gameMode === "STORY") {
+        if (state.currentLevel === 1) {
+            if (state.currentDay < 3) {
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
+                return;
+            }
+        } else if (state.currentLevel === 2) {
+            if (!state.dogRescued) {
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("mustRescueDog"), life: 2.0, color: "#ff4a4a" });
+                return;
+            }
+            if (state.currentDay < 5) {
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
+                return;
+            }
+        }
     }
     
     state.gameOver = true;
@@ -148,13 +347,33 @@ window.packCampAndLeave = function(event) {
     if (state.score > (localStorage.getItem("campfireHighScore") || 0)) localStorage.setItem("campfireHighScore", Math.floor(state.score));
     if (state.currentDay > (localStorage.getItem("campfireHighDay") || 1)) localStorage.setItem("campfireHighDay", state.currentDay); 
     
+    let titleText = t("safelyExtracted");
+    let titleColor = "#4ade80";
+    
+    if (state.gameMode === "STORY") {
+        if (state.currentLevel === 1) {
+            localStorage.setItem("campfireSurvivalUnlocked", "true");
+            localStorage.setItem("campfireCurrentStoryLevel", 2);
+            titleText = t("lvl1Complete");
+            titleColor = "#ffd700";
+        } else if (state.currentLevel === 2) {
+            localStorage.setItem("campfireCurrentStoryLevel", 3);
+            titleText = t("lvl2Complete");
+            titleColor = "#ffd700";
+        }
+    }
+    
     setTimeout(() => { 
         const goUI = document.getElementById("gameOverUI"); 
         if(goUI) { 
             const title = goUI.querySelector("h2");
-            if(title) { title.textContent = "SAFELY EXTRACTED!"; title.style.color = "#4ade80"; }
+            if(title) { title.textContent = titleText; title.style.color = titleColor; }
             
-            document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay} <br><br> <span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${state.sessionGoldenWood} Golden Wood Saved!</span>`; 
+            document.getElementById("finalScoreText").innerHTML = `${t("score")}: ${Math.floor(state.score)} <br> ${t("day")}: ${state.currentDay} <br><br> <span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${state.sessionGoldenWood} ${t("goldenWoodSaved")}</span>`; 
+            
+            const mrBtn = document.getElementById("menuReturnBtn");
+            if(mrBtn) mrBtn.textContent = t("mainMenu");
+            
             goUI.classList.remove("hidden"); 
         }     
     }, 500);
@@ -165,9 +384,10 @@ function initAudio() {
   audioStarted = true;
   sounds.day.volume = 0; sounds.night.volume = 0; sounds.fire.volume = 0;
   sounds.wind.volume = 0; sounds.rain.volume = 0; sounds.bloodmoon.volume = 0;
-  Object.values(sounds).forEach(snd => {
+  Object.keys(sounds).forEach(key => {
+    let snd = sounds[key];
     snd.muted = state.isMuted;
-    if (snd.loop) snd.play().catch(() => console.log("Audio file not added yet."));
+    if (snd.loop && key !== "typewriter") snd.play().catch(() => console.log("Audio file not added yet."));
   });
 }
 
@@ -181,7 +401,13 @@ function stopAudio() {
   Object.values(sounds).forEach(snd => { snd.pause(); snd.currentTime = 0; });
 }
 function pauseAudio() { Object.values(sounds).forEach(snd => { if (snd.loop) snd.pause(); }); }
-function resumeAudio() { if (!audioStarted) return; Object.values(sounds).forEach(snd => { if (snd.loop) snd.play().catch(()=>{}); }); }
+function resumeAudio() { 
+    if (!audioStarted) return; 
+    Object.keys(sounds).forEach(key => { 
+        let snd = sounds[key];
+        if (snd.loop && key !== "typewriter") snd.play().catch(()=>{}); 
+    }); 
+}
 
 hudEl.innerHTML = "";
 hudEl.style.display = "flex";
@@ -240,8 +466,6 @@ updateMaxCarryCapacity(); updatePetStats();
 function renderBagIcons() { 
     let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
     let isFull = currentCarry >= state.maxCarry;
-    
-    // Çanta doluysa kırmızı ve kalın bir (FULL) yazısı ekler
     let statusText = isFull ? `<span style="color:#ff4a4a; font-size:12px; margin-left:4px; font-weight:900;">(FULL)</span>` : "";
     
     let html = `
@@ -255,7 +479,7 @@ function renderBagIcons() {
     if(state.carried.mushroom > 0) html += `<span>🍄${state.carried.mushroom}</span>`;
     if(state.carried.fish > 0) html += `<span>🐟${state.carried.fish}</span>`;
     if(state.carried.blue_fish > 0) html += `<span>💎🐟${state.carried.blue_fish}</span>`;
-    if(currentCarry === 0) html += `<span style="color:#aaa;">Empty</span>`;
+    if(currentCarry === 0) html += `<span style="color:#aaa;">${t("empty")}</span>`;
     html += `</div>`;
     return html; 
 }
@@ -287,7 +511,7 @@ fireWrap.innerHTML = '🔥 <div class="bar-container"><div id="fireBar" class="b
 const healthWrap = document.createElement("div"); healthWrap.className = "bar-wrapper";
 healthWrap.innerHTML = '❤️ <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; barsGroup.appendChild(healthWrap);bottomRow.appendChild(barsGroup);
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text";
-scoreWrap.innerHTML = `Day <span id="dayText">1</span> | Score: <span id="scoreText">0</span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`; bottomRow.appendChild(scoreWrap);
+scoreWrap.innerHTML = `<span id="dayTextContainer"></span> | <span id="scoreTextContainer"></span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`; bottomRow.appendChild(scoreWrap);
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
 
 const walkIdleSprite = new Image(); walkIdleSprite.src = "assets/walk and idle.png";
@@ -322,11 +546,21 @@ for (let cols = 1; cols <= Math.min(20, Math.floor(w / min)); cols += 1) { if (w
 common.forEach((fw) => { if (w % fw === 0) common.forEach((fh) => { if (h % fh === 0) tryAdd(fw, fh, w / fw, h / fh); }); });
 if (!candidates.length) return null; candidates.sort((a, b) => a.score - b.score); return candidates[0]; }
 
-function generateTrees() { state.trees = [];
-const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
-for (let i = 0; i < 70; i++) { let tx = Math.random() * w;
-let ty = Math.random() * h; if (dist({ x: tx, y: ty }, state.fire) > 230 && !isPointInPond(tx, ty)) { state.trees.push({ x: tx, y: ty, r: 15 + Math.random() * 25, color: Math.random() > 0.5 ? "#142e12" : "#1a3a17" });
-} } }
+function generateTrees() { 
+    state.trees = [];
+    const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
+    let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+    for (let i = 0; i < 70; i++) { 
+        let tx = Math.random() * w;
+        let ty = Math.random() * h; 
+        if (dist({ x: tx, y: ty }, state.fire) > 230 && !isPointInPond(tx, ty)) { 
+            let c1 = isAutumn ? "#8b4513" : "#142e12";
+            let c2 = isAutumn ? "#a0522d" : "#1a3a17";
+            let dead = isAutumn && Math.random() < 0.3;
+            state.trees.push({ x: tx, y: ty, r: 15 + Math.random() * 25, color: Math.random() > 0.5 ? c1 : c2, isDead: dead });
+        } 
+    } 
+}
 
 function resizeCanvas() { 
   const ratio = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect();
@@ -390,9 +624,13 @@ function updateHud() {
       bmIcon.style.opacity = 0; } } else { sIcon.style.opacity = 1; mIcon.style.opacity = 0; bmIcon.style.opacity = 0;
       } 
   }
-  const scoreEl = document.getElementById("scoreText"); if (scoreEl) scoreEl.textContent = String(Math.floor(state.score));
-  const dayEl = document.getElementById("dayText");
-  if (dayEl) dayEl.textContent = state.currentDay;
+  
+  const scoreContainer = document.getElementById("scoreTextContainer");
+  if(scoreContainer) scoreContainer.textContent = `${t("score")}: ${Math.floor(state.score)}`;
+  
+  const dayContainer = document.getElementById("dayTextContainer");
+  if(dayContainer) dayContainer.textContent = `${t("day")} ${state.currentDay}`;
+  
   const goldEl = document.getElementById("goldenWoodText"); if (goldEl) goldEl.textContent = state.sessionGoldenWood;
   
   const tMenu = document.getElementById("tentMenu");
@@ -405,7 +643,7 @@ function updateHud() {
           
           const hasCarriedItems = Object.values(state.carried).reduce((a,b)=>a+b, 0) > 0;
           let depositBtn = hasCarriedItems 
-            ? `<div class="tent-item" style="background: rgba(52, 152, 219, 0.4); border: 1px solid #3498db; width: 100%; margin-bottom: 5px;" onpointerdown="depositItems(event)">📥 DEPOSIT ALL</div>` 
+            ? `<div class="tent-item" style="background: rgba(52, 152, 219, 0.4); border: 1px solid #3498db; width: 100%; margin-bottom: 5px;" onpointerdown="depositItems(event)">${t("depositAll")}</div>` 
             : "";
 
           const newTentHTML = depositBtn + `
@@ -416,7 +654,7 @@ function updateHud() {
               ${state.tentStorage.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.tentStorage.cooked_blue_fish}</div>` : ""}
               ${state.tentStorage.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.tentStorage.cooked_mushroom}</div>` : ""}
               ${state.tentStorage.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.tentStorage.cooked_fish}</div>` : ""}
-              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-top: 5px; width: 100%;" onpointerdown="packCampAndLeave(event)">🏕️ PACK CAMP</div>
+              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-top: 5px; width: 100%;" onpointerdown="packCampAndLeave(event)">${t("packCamp")}</div>
           `;
           if (tMenu.innerHTML !== newTentHTML) {
               tMenu.innerHTML = newTentHTML;
@@ -427,10 +665,10 @@ function updateHud() {
   const mBtn = document.getElementById("mobileActionBtn");
   if (mBtn) {
     if (state.equippedFood && state.equippedFood !== "fish" && state.equippedFood !== "blue_fish") { 
-          mBtn.innerHTML = "EAT";
+          mBtn.innerHTML = t("eat");
           mBtn.style.color = "#4ade80"; 
       } else {
-          mBtn.innerHTML = "FEED FIRE";
+          mBtn.innerHTML = t("feedFire");
           mBtn.style.color = "#fff"; 
       }
   }
@@ -496,7 +734,7 @@ function collectItems() {
   if (state.blueMushroom && dist(state.player, state.blueMushroom) <= state.player.r + state.blueMushroom.r) { 
       state.superModeTimer = 8.0; playSound(sounds.feed);
       state.score += 100; 
-      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER!", life: 2.0, color: "#00ffff" }); 
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("superMode"), life: 2.0, color: "#00ffff" }); 
       state.blueMushroom = null;
       state.blueMushroomTimer = 40 + Math.random() * 40; 
   }  
@@ -519,6 +757,31 @@ function updateWind(dt) { for (let i = state.windParticles.length - 1; i >= 0; i
 wp.x -= wp.speed * dt; if (wp.x < -150) { state.windParticles.splice(i, 1);
 } } }
 
+function updateLeafParticles(dt) {
+    if (state.gameMode !== "STORY" || state.currentLevel !== 2) return;
+    
+    state.leafSpawnTimer -= dt;
+    let spawnRate = state.windDuration > 0 ? 0.05 : 0.4;
+    if(state.leafSpawnTimer <= 0) {
+        state.leafParticles.push({
+            x: (canvas.clientWidth || 800) + 50,
+            y: Math.random() * (canvas.clientHeight || 600),
+            speed: (state.windDuration > 0 ? 300 : 100) + Math.random() * 50,
+            wobbleSpeed: 5 + Math.random() * 5,
+            wobbleOffset: Math.random() * Math.PI * 2,
+            color: Math.random() > 0.5 ? "#a0522d" : "#cd853f"
+        });
+        state.leafSpawnTimer = spawnRate;
+    }
+
+    for(let i = state.leafParticles.length - 1; i >= 0; i--) {
+        let lp = state.leafParticles[i];
+        lp.x -= lp.speed * dt;
+        lp.y += Math.sin(performance.now() * 0.001 * lp.wobbleSpeed + lp.wobbleOffset) * 2;
+        if(lp.x < -50) state.leafParticles.splice(i, 1);
+    }
+}
+
 function feedFire() {
   if (state.gameOver) return;
 
@@ -539,7 +802,7 @@ function feedFire() {
           state.health = 100;
           state.superModeTimer = 16.0; 
           state.score += 200;
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "SUPER MODE!", life: 2.0, color: "#00ffff" });
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("superMode"), life: 2.0, color: "#00ffff" });
       }
       
       state.equippedCount--;
@@ -554,7 +817,6 @@ function feedFire() {
   const inRange = dist(state.player, state.fire) < state.player.r + state.fire.r + 20;
   if (!inRange) return;
 
-  // Ateşi ana stoktan besle, stokta yoksa çantadan besle
   let usedWood = false;
   if (state.tentStorage.wood > 0) {
       state.tentStorage.wood--;
@@ -566,17 +828,16 @@ function feedFire() {
 
   if (!usedWood) {
     if (state.equippedFood === "fish" || state.equippedFood === "blue_fish") {
-      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NEEDS COOKING!", life: 1.5, color: "#ff4a4a" });
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("needsCooking"), life: 1.5, color: "#ff4a4a" });
     } else {
-      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "NO WOOD!", life: 1.0, color: "#ff4a4a" });
+      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("noWood"), life: 1.0, color: "#ff4a4a" });
     }
     return;
   }
   
-  if (state.fire.level <= 0) { spawnSmoke(state.fire.x, state.fire.y, 12);
-  }
+  if (state.fire.level <= 0) { spawnSmoke(state.fire.x, state.fire.y, 12); }
   if (state.fire.level < 15 && state.fire.level > 0) { state.score += 50;
-      state.floatingTexts.push({ x: state.fire.x, y: state.fire.y - 40, text: "CLOSE CALL! +50", life: 2.0, color: "#ffd700" });
+      state.floatingTexts.push({ x: state.fire.x, y: state.fire.y - 40, text: t("closeCall"), life: 2.0, color: "#ffd700" });
   }
   spawnSparks(state.fire.x, state.fire.y, 15);
   state.fire.level = Math.min(100, state.fire.level + 18); state.score += 10;
@@ -590,6 +851,10 @@ function nightBlend() { const cyclePos = state.dayNightTimer % CYCLE_SECONDS; co
 
 function updatePet(dt) {
   if (state.gameOver) return;
+  
+  if (state.gameMode === "STORY" && state.currentLevel === 1) return;
+  if (state.gameMode === "STORY" && state.currentLevel === 2 && !state.dogRescued) return;
+
   const dToPlayer = dist(state.pet, state.player); const dToTent = dist(state.pet, state.tent); const night = isNight();
   let isJustFollowingPlayer = false;
   if (night) {
@@ -618,7 +883,7 @@ function updatePet(dt) {
               let attackTarget = state.enemies.find(e => dist(state.pet, e) < 65);
               if (attackTarget && (!attackTarget.stunTimer || attackTarget.stunTimer <= 0)) {
                   attackTarget.stunTimer = 1.5;
-                  state.floatingTexts.push({ x: attackTarget.x, y: attackTarget.y - 20, text: "STUNNED!", life: 1.5, color: "#ff4a4a" }); state.pet.attackCooldown = 10.0 * cooldownMultiplier;
+                  state.floatingTexts.push({ x: attackTarget.x, y: attackTarget.y - 20, text: t("stunned"), life: 1.5, color: "#ff4a4a" }); state.pet.attackCooldown = 10.0 * cooldownMultiplier;
                   state.pet.x = attackTarget.x; state.pet.y = attackTarget.y;
               }
           }
@@ -633,7 +898,6 @@ function updatePet(dt) {
     if (state.pet.isFetching && !state.pet.hasWood) { state.pet.isSitting = false;
         if (dist(state.pet, {x: state.pet.targetX, y: state.pet.targetY}) < 15) { state.pet.hasWood = true; state.pet.isFetching = false;
     } } else if (state.pet.hasWood) { 
-        // Köpek odunu oyuncuya değil, ÇADIRA (Ana Üsse) taşır!
         state.pet.targetX = state.tent.x + 40; 
         state.pet.targetY = state.tent.y + 20; 
         state.pet.isSitting = false;
@@ -642,7 +906,7 @@ function updatePet(dt) {
             state.tentStorage.wood++; 
             state.score += 5; 
             playSound(sounds.wood);
-            state.floatingTexts.push({ x: state.pet.x, y: state.pet.y - 20, text: "STORED 🪵", life: 1.5, color: "#d2b48c" }); 
+            state.floatingTexts.push({ x: state.pet.x, y: state.pet.y - 20, text: t("stored"), life: 1.5, color: "#d2b48c" }); 
             updateHud(); 
             state.pet.hasWood = false;
             state.pet.fetchTimer = 20 + Math.random() * 20; 
@@ -805,6 +1069,45 @@ function update(dt) {
   state.player.x += ((moveX / len) * state.player.speed * dt) || 0;
   state.player.y += ((moveY / len) * state.player.speed * dt) || 0;
   clampPlayer();
+  
+  if (state.gameMode === "STORY" && state.currentLevel === 2) {
+      let searchingPile = null;
+      for(let p of state.leafPiles) {
+          if(!p.searched && dist(state.player, p) < state.player.r + p.r + 10) {
+              searchingPile = p; break;
+          }
+      }
+      if(searchingPile && !isMoving) {
+          searchingPile.progress += dt;
+          if(searchingPile.progress >= 2.5) {
+              searchingPile.searched = true;
+              if(searchingPile.content === "dog") {
+                  state.dogRescued = true;
+                  state.pet.x = searchingPile.x;
+                  state.pet.y = searchingPile.y;
+                  state.floatingTexts.push({x: state.player.x, y: state.player.y - 40, text: t("dogRescued"), life: 2.0, color: "#4ade80"});
+                  playSound(sounds.wood);
+              } else if(searchingPile.content === "wood") {
+                  for(let k=0; k<3; k++) {
+                      state.woods.push({ x: searchingPile.x + (Math.random()*30-15), y: searchingPile.y + (Math.random()*30-15), r: 10, angle: Math.random() * Math.PI * 2, isGolden: false });
+                  }
+                  state.floatingTexts.push({x: searchingPile.x, y: searchingPile.y - 20, text: t("leafWood"), life: 1.5, color: "#ffd700"});
+                  playSound(sounds.wood);
+              } else if(searchingPile.content === "raccoon") {
+                  state.raccoons.push({ x: searchingPile.x, y: searchingPile.y, speed: 150, r: 12, hasWood: false, fleeAngle: null, wobble: 0 });
+                  state.floatingTexts.push({x: searchingPile.x, y: searchingPile.y - 20, text: t("leafRaccoon"), life: 1.5, color: "#ff4a4a"});
+                  playSound(sounds.howl);
+              } else {
+                  state.floatingTexts.push({x: searchingPile.x, y: searchingPile.y - 20, text: t("leafEmpty"), life: 1.5, color: "#aaa"});
+              }
+          }
+      } else if (searchingPile && isMoving) {
+          searchingPile.progress = 0;
+      } else {
+          for(let p of state.leafPiles) p.progress = 0;
+      }
+  }
+  
   let dPond = dist(state.player, state.pond);
   
   if (dPond < state.pond.r + state.player.r - 5) {
@@ -814,11 +1117,9 @@ function update(dt) {
       dPond = state.pond.r + state.player.r - 5;
   }
 
-// KIYIDA BALIK TUTMA
   let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; 
   let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
 
-  // EĞER çanta dolu DEĞİLSE balık tutmaya başla (Bar dolsun)
   if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday && currentCarry < state.maxCarry) {
       state.pond.fishProgress += dt;
       if (state.pond.fishProgress >= reqFishTime) {
@@ -829,7 +1130,7 @@ function update(dt) {
               state.sessionGoldenWood += 10;
               let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
               localStorage.setItem("campfireGoldenWood", currentBank + 10);
-              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "TREASURE! +10 🟡", life: 2.0, color: "#ffd700" });
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("treasure"), life: 2.0, color: "#ffd700" });
               playSound(sounds.wood);
           } else {
               if (currentFishingTier >= 3) {
@@ -842,7 +1143,6 @@ function update(dt) {
           }
       }
   } else { 
-      // Çanta doluysa veya hareket ediyorsa barı gizle / sıfırla
       state.pond.fishProgress = 0;
   }
 
@@ -857,7 +1157,7 @@ function update(dt) {
           else if (state.equippedFood === "blue_fish") state.equippedFood = "cooked_blue_fish";
           else state.equippedFood = "cooked_mushroom";
           state.cookTimer = 0;
-          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "COOKED!", life: 1.5, color: "#ff9900" });
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("cooked"), life: 1.5, color: "#ff9900" });
       }
   } else { state.cookTimer = 0; }
 
@@ -881,10 +1181,16 @@ function update(dt) {
           if (Math.random() < 12 * dt) { 
               state.windParticles.push({ x: (canvas.clientWidth || 800) + 50, y: Math.random() * (canvas.clientHeight || 600), length: 40 + Math.random() * 60, speed: 500 + Math.random() * 300 });
           } 
-          if (state.windDuration <= 0) state.windTimer = 40 + Math.random() * 40;
+          if (state.windDuration <= 0) {
+              state.windTimer = 40 + Math.random() * 40;
+              if (state.gameMode === "STORY" && state.currentLevel === 2) state.windTimer = 10 + Math.random() * 15;
+          }
       } else { 
           state.windTimer -= dt;
-          if (state.windTimer <= 0) state.windDuration = 10 + Math.random() * 10; 
+          if (state.windTimer <= 0) {
+              state.windDuration = 10 + Math.random() * 10; 
+              if (state.gameMode === "STORY" && state.currentLevel === 2) state.windDuration = 15 + Math.random() * 10;
+          }
       } 
   }
 
@@ -906,7 +1212,7 @@ function update(dt) {
       } 
   }
   
-  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt);
+  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt); updateLeafParticles(dt);
   
   state.health -= dt * 0.3;
   if (isMoving) state.health -= dt * 1.2; 
@@ -988,7 +1294,7 @@ function update(dt) {
               state.floatingTexts.push({
                   x: state.fire.x,
                   y: state.fire.y - 40,
-                  text: "FIRE DRAINED!",
+                  text: t("fireDrained"),
                   life: 2.0,
                   color: "#9c27b0"
               });
@@ -1055,7 +1361,7 @@ function update(dt) {
                   state.floatingTexts.push({
                       x: state.player.x,
                       y: state.player.y - 30,
-                      text: "DEFENDED!",
+                      text: t("defended"),
                       life: 1.5,
                       color: "#4ea9ff"
                   });
@@ -1098,7 +1404,11 @@ function update(dt) {
                 const title = goUI.querySelector("h2");
                 if(title) { title.textContent = "GAME OVER"; title.style.color = "#ff4a4a"; } 
                 
-                document.getElementById("finalScoreText").innerHTML = `Score: ${Math.floor(state.score)} <br> Day: ${state.currentDay} <br><br> <span style="color:#ff4a4a; font-size:16px;">-${lostGold} Gold Lost (Death Penalty)</span><br><span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${savedGold} Golden Wood Saved!</span>`; 
+                document.getElementById("finalScoreText").innerHTML = `${t("score")}: ${Math.floor(state.score)} <br> ${t("day")}: ${state.currentDay} <br><br> <span style="color:#ff4a4a; font-size:16px;">-${lostGold} Gold Lost (Death Penalty)</span><br><span style="color:#ffd700; font-size:18px; text-shadow: 0 0 5px rgba(255,215,0,0.5);">+${savedGold} ${t("goldenWoodSaved")}</span>`; 
+                
+                const mrBtn = document.getElementById("menuReturnBtn");
+                if(mrBtn) mrBtn.textContent = t("mainMenu");
+                
                 goUI.classList.remove("hidden"); 
             }     
         }, 1500);
@@ -1238,28 +1548,96 @@ function drawRain() { if (state.rainDuration <= 0 && state.rainDrops.length === 
   } ctx.strokeStyle = "rgba(150, 180, 255, 0.4)"; ctx.lineWidth = 1.5; ctx.beginPath();
   state.rainDrops.forEach(drop => { ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x - (drop.length * 0.1), drop.y + drop.length); }); ctx.stroke(); ctx.restore();
 }
+function drawLeafParticles() {
+    state.leafParticles.forEach(lp => {
+        ctx.save();
+        ctx.translate(lp.x, lp.y);
+        ctx.rotate(performance.now() * 0.005);
+        ctx.fillStyle = lp.color;
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    });
+}
+function drawLeafPiles() {
+    if (state.gameMode !== "STORY" || state.currentLevel !== 2) return;
+    state.leafPiles.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        if(p.searched) {
+            ctx.globalAlpha = 0.5;
+            for(let i=0; i<5; i++) {
+                ctx.fillStyle = (i%2===0)?"#a0522d":"#8b4513";
+                ctx.beginPath(); ctx.ellipse(Math.cos(i)*15, Math.sin(i)*15, 6, 3, i, 0, Math.PI*2); ctx.fill();
+            }
+        } else {
+            let wobble = Math.sin(performance.now() * 0.005 + p.x) * 2;
+            if(state.windDuration <= 0) wobble = 0;
+            ctx.fillStyle = "#8b4513";
+            ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r*0.7, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#a0522d";
+            ctx.beginPath(); ctx.ellipse(0, -3 + wobble, p.r*0.8, p.r*0.5, 0.2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#cd853f";
+            ctx.beginPath(); ctx.ellipse(0, -6 + wobble, p.r*0.5, p.r*0.3, -0.1, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+
+        if(!p.searched && p.progress > 0) {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(p.x - 20, p.y - p.r - 15, 40, 6);
+            ctx.fillStyle = "#ffd700";
+            ctx.fillRect(p.x - 20, p.y - p.r - 15, 40 * (p.progress / 2.5), 6);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
+            ctx.textAlign = "center"; ctx.fillText(t("searching"), p.x, p.y - p.r - 20);
+        }
+    });
+}
 
 function drawEnvironment() {
   const w = (canvas.clientWidth || 800) + 10; const h = (canvas.clientHeight || 600) + 10;
-  ctx.fillStyle = "#1e3d1c"; ctx.fillRect(-5, -5, w, h);
+  
+  let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+  
+  let groundColor = isAutumn ? "#3d2b1c" : "#1e3d1c";
+  ctx.fillStyle = groundColor; 
+  ctx.fillRect(-5, -5, w, h);
+  
   ctx.fillStyle = "rgba(0,0,0,0.15)";
   for (let i = 0; i < 80; i++) ctx.fillRect((i * 67) % w, (i * 43) % h, 4, 4);
+  
   ctx.fillStyle = "#3e2723"; ctx.beginPath(); ctx.ellipse(state.fire.x, state.fire.y - 20, 220, 140, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#4a3525"; ctx.beginPath();
   ctx.ellipse(state.fire.x, state.fire.y - 20, 170, 100, 0, 0, Math.PI * 2); ctx.fill();
-  state.trees.forEach(tree => { ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); });
+  
+  state.trees.forEach(tree => { 
+      if(tree.isDead) {
+          ctx.strokeStyle = "#2c1c11";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(tree.x, tree.y + 10);
+          ctx.lineTo(tree.x, tree.y - tree.r);
+          ctx.moveTo(tree.x, tree.y - tree.r*0.2);
+          ctx.lineTo(tree.x - tree.r*0.6, tree.y - tree.r*0.8);
+          ctx.moveTo(tree.x, tree.y - tree.r*0.4);
+          ctx.lineTo(tree.x + tree.r*0.5, tree.y - tree.r*0.9);
+          ctx.stroke();
+      } else {
+          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); 
+          ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); 
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); 
+      }
+  });
   
   ctx.save();
   const px = state.pond.x; 
   const py = state.pond.y;
   const baseR = state.pond.r; 
 
-  ctx.fillStyle = "rgba(10, 30, 60, 0.9)"; 
+  ctx.fillStyle = isAutumn ? "rgba(20, 30, 40, 0.95)" : "rgba(10, 30, 60, 0.9)"; 
   ctx.beginPath();
   ctx.moveTo(px, py); 
   ctx.arc(px, py, baseR, 0, Math.PI * 2); 
   ctx.fill();
-  ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
+  ctx.fillStyle = isAutumn ? "rgba(35, 60, 70, 0.7)" : "rgba(43, 108, 176, 0.6)"; 
   ctx.beginPath();
   ctx.moveTo(px, py);
   ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
@@ -1345,7 +1723,6 @@ function drawTent() {
   ctx.lineTo(tx + 85, ty + 50); ctx.stroke();
   ctx.fillStyle = "#95a5a6"; ctx.beginPath(); ctx.arc(tx, ty - 60, 3, 0, Math.PI*2); ctx.fill();
   
-  // Çadırın yanına biriken odun yığını (Görsel Depo)
   let stack = Math.min(15, state.tentStorage.wood);
   if(stack > 0) {
       ctx.save();
@@ -1473,6 +1850,9 @@ function drawPlayerSprite() {
 }
 
 function drawPet() {
+  if (state.gameMode === "STORY" && state.currentLevel === 1) return;
+  if (state.gameMode === "STORY" && state.currentLevel === 2 && !state.dogRescued) return;
+
   ctx.save(); ctx.translate(state.pet.x, state.pet.y);
   if (state.pet.isSleeping) {
     const breathe = Math.sin(Date.now() * 0.003) * 1; 
@@ -1568,15 +1948,19 @@ function draw() {
       ctx.restore();
   }
 
-  drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); drawPlayerSprite(); drawFloatingTexts();
+  drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); 
+  drawLeafPiles();
+  
+  drawPlayerSprite(); drawFloatingTexts(); drawLeafParticles();
+  
   const cw = canvas.clientWidth || 800; const ch = canvas.clientHeight || 600;
   if (state.dayMessageTimer > 0) { ctx.save();
       ctx.globalAlpha = Math.min(1, state.dayMessageTimer); ctx.fillStyle = "#ffd700";
       ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "#000";
       ctx.shadowBlur = 10;
-      ctx.fillText("DAY " + state.currentDay, cw / 2, ch / 4); ctx.font = "bold 20px Arial";
+      ctx.fillText(`${t("day")} ${state.currentDay}`, cw / 2, ch / 4); ctx.font = "bold 20px Arial";
       ctx.fillStyle = "#fff";
-      ctx.fillText("SURVIVED", cw / 2, ch / 4 + 30); ctx.restore();
+      ctx.fillText(t("survived"), cw / 2, ch / 4 + 30); ctx.restore();
   }
 
   if (state.bloodMoonMessageTimer > 0) {
@@ -1587,7 +1971,7 @@ function draw() {
       ctx.textAlign = "center";
       ctx.shadowColor = "#000";
       ctx.shadowBlur = 10;
-      ctx.fillText("THE BLOOD MOON RISES...", cw / 2, 60);
+      ctx.fillText(t("bloodMoonRises"), cw / 2, 60);
       ctx.restore();
   }
 
@@ -1599,10 +1983,10 @@ function draw() {
       ctx.textAlign = "center";
       ctx.shadowColor = "#000";
       ctx.shadowBlur = 10;
-      ctx.fillText("BLOOD MOON SURVIVED!", cw / 2, 60);
+      ctx.fillText(t("bloodMoonSurvived"), cw / 2, 60);
       ctx.fillStyle = "#4ade80";
       ctx.font = "bold 18px Arial";
-      ctx.fillText("+100 GOLDEN WOOD", cw / 2, 90);
+      ctx.fillText("+100 🟡", cw / 2, 90);
       ctx.restore();
   }
 
@@ -1612,7 +1996,7 @@ function draw() {
       ctx.fillStyle = "#4ea9ff";
       ctx.fillRect(state.player.x - 20, state.player.y - 45, 40 * (state.pond.fishProgress / 4.0), 6);
       ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
-      ctx.textAlign = "center"; ctx.fillText("Fishing...", state.player.x, state.player.y - 50);
+      ctx.textAlign = "center"; ctx.fillText(t("fishing"), state.player.x, state.player.y - 50);
   }
   if (state.cookTimer > 0) {
       let reqTime = (state.equippedFood === "fish" || state.equippedFood === "blue_fish") ? 3.0 : 2.0;
@@ -1620,7 +2004,7 @@ function draw() {
       ctx.fillStyle = "#ff9900";
       ctx.fillRect(state.player.x - 20, state.player.y - 45, 40 * (state.cookTimer / reqTime), 6);
       ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
-      ctx.textAlign = "center"; ctx.fillText("Cooking...", state.player.x, state.player.y - 50);
+      ctx.textAlign = "center"; ctx.fillText(t("cooking"), state.player.x, state.player.y - 50);
   }
 
   if (state.equippedFood) {
@@ -1642,8 +2026,8 @@ function draw() {
       ctx.fillRect(-5, -5, w, h); }
 }
 
-function resetGame() {
-    state.status = "MENU"; state.gameOver = false; state.deathAnimDone = false;
+function resetState() {
+    state.gameOver = false; state.deathAnimDone = false;
     state.score = 0;
     state.health = 100; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
     state.sessionGoldenWood = 0;
@@ -1669,12 +2053,48 @@ function resetGame() {
     state.pet.isSitting = true; state.pet.isSleeping = false;
     state.enemies = []; state.raccoons = []; state.smokeParticles = []; state.sparks = [];
     state.floatingTexts = []; state.playerTrails = []; state.windParticles = []; state.rainDrops = [];
+    state.leafParticles = []; state.leafSpawnTimer = 0; state.leafPiles = [];
     state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0;
     state.pendingMushroomRespawns = 0; state.mushroomRespawnTimer = 0; state.blueMushroomTimer = 30 + Math.random() * 30; state.superModeTimer = 0; state.raccoonSpawnTimer = 15;
     state.windTimer = 20 + Math.random() * 30; state.windDuration = 0; state.rainTimer = 30 + Math.random() * 40; state.rainDuration = 0;
     state.bloodMoonActive = false; state.bloodMoonMessageTimer = 0; state.survivedBloodMoonMessageTimer = 0; state.bloodMoonHowlTimer = 0; state.fireEaterSpawnTimer = 0;
+    
+    if (state.gameMode === "STORY") {
+        if (state.currentLevel === 1) {
+            state.dogRescued = false;
+        } else if (state.currentLevel === 2) {
+            state.dogRescued = false;
+            let pileCoords = [];
+            for (let i=0; i<6; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                let distFromCenter = 250 + Math.random() * 200;
+                let px = state.fire.x + Math.cos(angle) * distFromCenter;
+                let py = state.fire.y + Math.sin(angle) * distFromCenter;
+                px = Math.max(50, Math.min((canvas.clientWidth || 800) - 50, px));
+                py = Math.max(50, Math.min((canvas.clientHeight || 600) - 50, py));
+                if(isPointInPond(px, py)) { py -= 150; }
+                pileCoords.push({ x: px, y: py, r: 25, progress: 0, searched: false, content: "empty" });
+            }
+            let dogIndex = Math.floor(Math.random() * pileCoords.length);
+            pileCoords[dogIndex].content = "dog";
+            for(let i=0; i<pileCoords.length; i++) {
+                if(i !== dogIndex) {
+                    let rand = Math.random();
+                    if(rand < 0.3) pileCoords[i].content = "wood";
+                    else if(rand < 0.6) pileCoords[i].content = "raccoon";
+                }
+            }
+            state.leafPiles = pileCoords;
+        } else {
+            state.dogRescued = true; 
+        }
+    } else {
+        state.dogRescued = true; 
+    }
+    
     controls.up = false;
     controls.down = false; controls.left = false; controls.right = false;
+    generateTrees();
     seedWoods(); updateHud();
 }
 
@@ -1776,59 +2196,114 @@ function bindKeyboard() {
   });
 }
 
+function setupMainMenu() {
+    const menuBtns = document.querySelector("#mainMenu .menu-buttons");
+    if(!menuBtns) return;
+    menuBtns.innerHTML = ""; 
+    
+    let savedStoryLevel = parseInt(localStorage.getItem("campfireCurrentStoryLevel")) || 1;
+    
+    const btnStory = document.createElement("button");
+    btnStory.className = "menu-btn primary";
+    btnStory.innerHTML = savedStoryLevel > 1 ? t("btnStoryCont") : t("btnStory");
+    btnStory.onclick = () => {
+        state.gameMode = "STORY";
+        state.currentLevel = savedStoryLevel;
+        resetState();
+        if (state.currentLevel === 1) {
+            playIntro(t("intro1Title"), t("intro1Text"), () => {
+                initAudio(); state.status = "PLAYING"; 
+            });
+        } else if (state.currentLevel === 2) {
+            playIntro(t("intro2Title"), t("intro2Text"), () => {
+                initAudio(); state.status = "PLAYING"; 
+            });
+        } else {
+            initAudio(); state.status = "PLAYING"; 
+        }
+    };
+    menuBtns.appendChild(btnStory);
+    
+    const isSurvivalUnlocked = localStorage.getItem("campfireSurvivalUnlocked") === "true";
+    const btnSurvival = document.createElement("button");
+    btnSurvival.className = "menu-btn " + (isSurvivalUnlocked ? "primary" : "secondary");
+    btnSurvival.innerHTML = isSurvivalUnlocked ? t("btnSurvival") : t("btnLocked");
+    btnSurvival.disabled = !isSurvivalUnlocked;
+    btnSurvival.onclick = () => {
+        state.gameMode = "SURVIVAL";
+        resetState();
+        initAudio(); state.status = "PLAYING"; document.getElementById("mainMenu").classList.add("hidden");
+    };
+    menuBtns.appendChild(btnSurvival);
+    
+    const btnScores = document.createElement("button");
+    btnScores.className = "menu-btn secondary";
+    btnScores.innerHTML = t("btnScores");
+    btnScores.onclick = () => {
+        const high = localStorage.getItem("campfireHighScore") || 0; 
+        const day = localStorage.getItem("campfireHighDay") || 1; 
+        const bank = localStorage.getItem("campfireGoldenWood") || 0;
+        
+        document.getElementById("highScoreList").innerHTML = `
+            <div style="text-align: left;">
+                <p>🔥 Best Score: <span style="color:#ffd700;">${high}</span></p>
+                <p>📅 Max Days: <span style="color:#ffd700;">${day}</span></p>
+                <hr style="border:0; border-top:1px solid #555; margin: 15px 0;">
+                <p>💰 Total Golden Wood: <span style="color:#ffd700;">${bank}</span></p>
+            </div>
+        `; 
+        document.getElementById("mainMenu").classList.add("hidden"); 
+        document.getElementById("scoreBoard").classList.remove("hidden"); 
+        
+        const scoreH2 = document.querySelector("#scoreBoard h2");
+        if(scoreH2) scoreH2.textContent = t("statsTitle");
+    };
+    menuBtns.appendChild(btnScores);
+
+    const upgBtn = document.createElement("button");
+    upgBtn.id = "upgradesBtn";
+    upgBtn.className = "menu-btn secondary";
+    upgBtn.innerHTML = t("btnUpgrades");
+    upgBtn.onclick = () => {
+        renderUpgradesMenu();
+        document.getElementById("mainMenu").classList.add("hidden");
+        document.getElementById("upgradesMenu").classList.remove("hidden");
+    };
+    menuBtns.appendChild(upgBtn);
+    
+    const btnLang = document.createElement("button");
+    btnLang.className = "menu-btn secondary";
+    btnLang.innerHTML = "🌐 " + currentLang.toUpperCase();
+    btnLang.onclick = () => {
+        currentLang = currentLang === "tr" ? "en" : "tr";
+        localStorage.setItem("campfireLang", currentLang);
+        setupMainMenu();
+    };
+    menuBtns.appendChild(btnLang);
+}
+
 window.addEventListener("resize", resizeCanvas);
-resizeCanvas(); seedWoods(); bindKeyboard(); updateHud(); requestAnimationFrame(frame);
+resizeCanvas(); seedWoods(); bindKeyboard(); setupMainMenu(); updateHud(); requestAnimationFrame(frame);
 
 function resumeGame() { state.status = "PLAYING"; const pUI = document.getElementById("pauseUI"); if (pUI) pUI.classList.add("hidden");
   const pauseBtn = document.getElementById("hudPauseBtn"); if(pauseBtn) pauseBtn.innerHTML = "⏸"; resumeAudio(); state.lastTs = performance.now(); }
 function quitToMenu() { const pUI = document.getElementById("pauseUI");
-  if (pUI) pUI.classList.add("hidden"); resetGame(); document.getElementById("mainMenu").classList.remove("hidden"); }
+  if (pUI) pUI.classList.add("hidden"); state.status = "MENU"; setupMainMenu(); document.getElementById("mainMenu").classList.remove("hidden"); }
 
-document.getElementById("startBtn").addEventListener("click", () => { initAudio(); state.status = "PLAYING"; document.getElementById("mainMenu").classList.add("hidden"); });
-document.getElementById("scoresBtn").addEventListener("click", () => { 
-    const high = localStorage.getItem("campfireHighScore") || 0; 
-    const day = localStorage.getItem("campfireHighDay") || 1; 
-    const bank = localStorage.getItem("campfireGoldenWood") || 0;
-    
-    document.getElementById("highScoreList").innerHTML = `
-        <div style="text-align: left;">
-            <p>🔥 Best Score: <span style="color:#ffd700;">${high}</span></p>
-            <p>📅 Max Days: <span style="color:#ffd700;">${day}</span></p>
-            <hr style="border:0; border-top:1px solid #555; margin: 15px 0;">
-            <p>💰 Total Golden Wood: <span style="color:#ffd700;">${bank}</span></p>
-        </div>
-    `; 
-    document.getElementById("mainMenu").classList.add("hidden"); 
-    document.getElementById("scoreBoard").classList.remove("hidden"); 
-    
-    const scoreH2 = document.querySelector("#scoreBoard h2");
-    if(scoreH2) scoreH2.textContent = "CAREER STATS";
-});
 document.getElementById("backBtn").addEventListener("click", () => { document.getElementById("scoreBoard").classList.add("hidden"); document.getElementById("mainMenu").classList.remove("hidden"); });
 
 const menuReturnBtn = document.getElementById("menuReturnBtn");
-if(menuReturnBtn) { menuReturnBtn.addEventListener("click", () => { document.getElementById("gameOverUI").classList.add("hidden"); resetGame(); document.getElementById("mainMenu").classList.remove("hidden"); }); }
+if(menuReturnBtn) { menuReturnBtn.addEventListener("click", () => { document.getElementById("gameOverUI").classList.add("hidden"); state.status = "MENU"; setupMainMenu(); document.getElementById("mainMenu").classList.remove("hidden"); }); }
 const hudPauseBtn = document.getElementById("hudPauseBtn");
-if(hudPauseBtn) { hudPauseBtn.addEventListener("click", () => { if (state.gameOver) return; if (state.status === "PLAYING") { state.status = "PAUSED"; const pUI = document.getElementById("pauseUI"); if (pUI) pUI.classList.remove("hidden"); hudPauseBtn.innerHTML = "▶"; pauseAudio(); } else if (state.status === "PAUSED") { resumeGame(); } });
+if(hudPauseBtn) { hudPauseBtn.addEventListener("click", () => { if (state.gameOver) return; if (state.status === "PLAYING") { state.status = "PAUSED"; const pUI = document.getElementById("pauseUI"); if (pUI) pUI.classList.remove("hidden"); hudPauseBtn.innerHTML = "▶"; pauseAudio(); 
+    document.getElementById("pauseTitle").textContent = "PAUSED";
+    document.getElementById("resumeBtn").textContent = t("resume");
+    document.getElementById("quitBtn").textContent = t("mainMenu");
+} else if (state.status === "PAUSED") { resumeGame(); } });
 }
 
 const dynamicResumeBtn = document.getElementById("resumeBtn"); if(dynamicResumeBtn) dynamicResumeBtn.addEventListener("click", resumeGame);
 const dynamicQuitBtn = document.getElementById("quitBtn"); if(dynamicQuitBtn) dynamicQuitBtn.addEventListener("click", quitToMenu);
-
-const mainMenuBtns = document.querySelector("#mainMenu .menu-buttons");
-if (mainMenuBtns && !document.getElementById("upgradesBtn")) {
-    const upgBtn = document.createElement("button");
-    upgBtn.id = "upgradesBtn";
-    upgBtn.className = "menu-btn secondary";
-    upgBtn.innerHTML = "🟡 UPGRADES";
-    
-    upgBtn.addEventListener("click", () => {
-        renderUpgradesMenu();
-        document.getElementById("mainMenu").classList.add("hidden");
-        document.getElementById("upgradesMenu").classList.remove("hidden");
-    });
-    mainMenuBtns.appendChild(upgBtn);
-}
 
 function renderUpgradesMenu() {
     const totalGold = parseInt(localStorage.getItem("campfireGoldenWood")) || 0;
@@ -1862,7 +2337,7 @@ function renderUpgradesMenu() {
     else { fgDescHTML = "Catches Super Blue Fish! <br> <span style='color:#4caf50'>MAX LEVEL REACHED</span>"; fgButtonHTML = `<button class="buy-btn maxed" disabled>MAX</button>`; }
 
     uMenu.innerHTML = `
-        <h2>UPGRADES</h2>
+        <h2>${t("btnUpgrades").replace('🟡 ', '')}</h2>
         <div class="gold-bank-display">🟡 Total Gold: ${totalGold}</div>
         
         <div id="shopNotification" style="color: #ff4a4a; font-weight: bold; font-size: 14px; height: 20px; margin-bottom: 15px; opacity: 0; transition: opacity 0.3s ease; text-transform: uppercase; letter-spacing: 1px;"></div>
@@ -1901,7 +2376,7 @@ function renderUpgradesMenu() {
             </div>
         </div>
         
-        <button id="closeUpgradesBtn" class="menu-btn secondary" style="width:120px; padding:10px; margin-top:10px;">BACK</button>
+        <button id="closeUpgradesBtn" class="menu-btn secondary" style="width:120px; padding:10px; margin-top:10px;">${t("back")}</button>
     `;
     
     document.getElementById("closeUpgradesBtn").addEventListener("click", () => {
