@@ -31,7 +31,7 @@ const I18N = {
         intro1Title: "CHAPTER 1: THE WRECKAGE",
         intro1Text: "My plane crashed... I'm lucky to be alive, but the radio is shattered. The map shows an old communication tower in the snowy mountains to the North. I must reach it, but first I need to gather my strength. I must survive for at least 3 days, pack my camp, and set off.",
         intro2Title: "CHAPTER 2: THE HOWL",
-        intro2Text: "I've passed the forest, but the wind at the foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
+        intro2Text: "I've passed the forest, but the wind at the rocky foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
         clickToContinue: "- CLICK TO CONTINUE -",
         tooDangerous: "TOO DANGEROUS NOW!",
         notReady: "NOT READY TO TRAVEL YET!",
@@ -84,7 +84,7 @@ const I18N = {
         intro1Title: "BÖLÜM 1: ENKAZ",
         intro1Text: "Uçağım düştü... Şanslıyım ki hayattayım ama telsiz parçalandı. Haritaya göre Kuzeydeki karlı dağlarda eski bir iletişim kulesi var. Oraya ulaşmalıyım ama önce toparlanmam lazım. En az 3 gün hayatta kalıp, kampı toplayarak yola çıkmalıyım.",
         intro2Title: "BÖLÜM 2: ULUMA",
-        intro2Text: "Ormanı aştım ama dağların eteklerinde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
+        intro2Text: "Ormanı aştım ama kayalık tepelerde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
         clickToContinue: "- DEVAM ETMEK İÇİN TIKLA -",
         tooDangerous: "ŞU AN ÇOK TEHLİKELİ!",
         notReady: "HENÜZ YOLA ÇIKMAYA HAZIR DEĞİLSİN!",
@@ -249,7 +249,7 @@ const state = {
   player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
-  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
+  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], rocks: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
   leafPiles: [], leafParticles: [], leafSpawnTimer: 0, pondLeaves: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
@@ -546,17 +546,38 @@ for (let cols = 1; cols <= Math.min(20, Math.floor(w / min)); cols += 1) { if (w
 common.forEach((fw) => { if (w % fw === 0) common.forEach((fh) => { if (h % fh === 0) tryAdd(fw, fh, w / fw, h / fh); }); });
 if (!candidates.length) return null; candidates.sort((a, b) => a.score - b.score); return candidates[0]; }
 
-function generateTrees() { 
+function isPointInPond(px, py) {
+    let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+    if (isAutumn) {
+        const h = canvas.clientHeight || 600;
+        return py > h - 100; 
+    }
+    return dist({x: px, y: py}, {x: state.pond.x, y: state.pond.y}) < state.pond.r;
+}
+
+function generateEnvironment() { 
     state.trees = [];
+    state.rocks = [];
     const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
     let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+    
+    if (isAutumn) {
+        for(let i=0; i<20; i++) {
+            let rx = Math.random() * w;
+            let ry = Math.random() * (h - 120);
+            if(dist({x:rx, y:ry}, state.fire) > 200) {
+                state.rocks.push({x: rx, y: ry, r: 10 + Math.random()*15});
+            }
+        }
+    }
+    
     for (let i = 0; i < 70; i++) { 
         let tx = Math.random() * w;
         let ty = Math.random() * h; 
         if (dist({ x: tx, y: ty }, state.fire) > 230 && !isPointInPond(tx, ty)) { 
             let c1 = isAutumn ? "#8b4513" : "#142e12";
             let c2 = isAutumn ? "#a0522d" : "#1a3a17";
-            let dead = isAutumn && Math.random() < 0.3;
+            let dead = isAutumn && Math.random() < 0.4;
             state.trees.push({ x: tx, y: ty, r: 15 + Math.random() * 25, color: Math.random() > 0.5 ? c1 : c2, isDead: dead });
         } 
     } 
@@ -569,15 +590,11 @@ function resizeCanvas() {
   state.fire.x = rect.width * 0.5;
   state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85;
   state.pond.x = 0; state.pond.y = rect.height; state.pond.r = rect.width * 0.35;
-  if (state.trees.length === 0) generateTrees();
+  if (state.trees.length === 0) generateEnvironment();
 }
 
 function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y);
 return isNaN(d) ? 9999 : d; }
-
-function isPointInPond(px, py) {
-  return dist({x: px, y: py}, {x: state.pond.x, y: state.pond.y}) < state.pond.r;
-}
 
 function randomWood() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
 const isGold = Math.random() < 0.15; for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold };
@@ -757,6 +774,7 @@ function updateWind(dt) { for (let i = state.windParticles.length - 1; i >= 0; i
 wp.x -= wp.speed * dt; if (wp.x < -150) { state.windParticles.splice(i, 1);
 } } }
 
+// === BURASI ÖNCEKİ KODDA YANLIŞLIKLA SİLİNEN KISIMDI ===
 function updateLeafParticles(dt) {
     if (state.gameMode !== "STORY" || state.currentLevel !== 2) return;
     
@@ -998,6 +1016,7 @@ function updateFireAnimation(dt) {
 
 function dirToRow(dir) { if (dir === "up") return 3; if (dir === "left") return 1;
   if (dir === "right") return 2; return 0; }
+// === BURASI ÖNCEKİ KODDA YANLIŞLIKLA SİLİNEN KISIMDI ===
 
 function update(dt) {
   if (state.status === "MENU" || state.status === "PAUSED") { updateFireAnimation(dt);
@@ -1070,7 +1089,9 @@ function update(dt) {
   state.player.y += ((moveY / len) * state.player.speed * dt) || 0;
   clampPlayer();
   
-  if (state.gameMode === "STORY" && state.currentLevel === 2) {
+  let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+
+  if (isAutumn) {
       let searchingPile = null;
       for(let p of state.leafPiles) {
           if(!p.searched && dist(state.player, p) < state.player.r + p.r + 10) {
@@ -1116,44 +1137,51 @@ function update(dt) {
       } else {
           for(let p of state.leafPiles) p.progress = 0;
       }
-  }
-  
-  let dPond = dist(state.player, state.pond);
-  
-  if (dPond < state.pond.r + state.player.r - 5) {
-      let angle = Math.atan2(state.player.y - state.pond.y, state.player.x - state.pond.x);
-      state.player.x = state.pond.x + Math.cos(angle) * (state.pond.r + state.player.r - 5);
-      state.player.y = state.pond.y + Math.sin(angle) * (state.pond.r + state.player.r - 5);
-      dPond = state.pond.r + state.player.r - 5;
-  }
+      
+      const ch = canvas.clientHeight || 600;
+      let cliffY = ch - 95;
+      if (state.player.y > cliffY - state.player.r) {
+          state.player.y = cliffY - state.player.r;
+      }
+      state.pond.fishProgress = 0;
+  } else {
+      let dPond = dist(state.player, state.pond);
+      
+      if (dPond < state.pond.r + state.player.r - 5) {
+          let angle = Math.atan2(state.player.y - state.pond.y, state.player.x - state.pond.x);
+          state.player.x = state.pond.x + Math.cos(angle) * (state.pond.r + state.player.r - 5);
+          state.player.y = state.pond.y + Math.sin(angle) * (state.pond.r + state.player.r - 5);
+          dPond = state.pond.r + state.player.r - 5;
+      }
 
-  let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; 
-  let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+      let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; 
+      let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
 
-  if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday && currentCarry < state.maxCarry) {
-      state.pond.fishProgress += dt;
-      if (state.pond.fishProgress >= reqFishTime) {
-          state.pond.fishProgress = 0;
-          state.pond.fishCaughtToday = true;
-          
-          if (currentFishingTier >= 2 && Math.random() < 0.20) {
-              state.sessionGoldenWood += 10;
-              let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
-              localStorage.setItem("campfireGoldenWood", currentBank + 10);
-              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("treasure"), life: 2.0, color: "#ffd700" });
-              playSound(sounds.wood);
-          } else {
-              if (currentFishingTier >= 3) {
-                  state.carried.blue_fish++;
-                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+      if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday && currentCarry < state.maxCarry) {
+          state.pond.fishProgress += dt;
+          if (state.pond.fishProgress >= reqFishTime) {
+              state.pond.fishProgress = 0;
+              state.pond.fishCaughtToday = true;
+              
+              if (currentFishingTier >= 2 && Math.random() < 0.20) {
+                  state.sessionGoldenWood += 10;
+                  let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
+                  localStorage.setItem("campfireGoldenWood", currentBank + 10);
+                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("treasure"), life: 2.0, color: "#ffd700" });
+                  playSound(sounds.wood);
               } else {
-                  state.carried.fish++;
-                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                  if (currentFishingTier >= 3) {
+                      state.carried.blue_fish++;
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+                  } else {
+                      state.carried.fish++;
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                  }
               }
           }
+      } else { 
+          state.pond.fishProgress = 0;
       }
-  } else { 
-      state.pond.fishProgress = 0;
   }
 
   if (!state.cookTimer) state.cookTimer = 0;
@@ -1193,13 +1221,13 @@ function update(dt) {
           } 
           if (state.windDuration <= 0) {
               state.windTimer = 40 + Math.random() * 40;
-              if (state.gameMode === "STORY" && state.currentLevel === 2) state.windTimer = 10 + Math.random() * 15;
+              if (isAutumn) state.windTimer = 10 + Math.random() * 15;
           }
       } else { 
           state.windTimer -= dt;
           if (state.windTimer <= 0) {
               state.windDuration = 10 + Math.random() * 10; 
-              if (state.gameMode === "STORY" && state.currentLevel === 2) state.windDuration = 15 + Math.random() * 10;
+              if (isAutumn) state.windDuration = 15 + Math.random() * 10;
           }
       } 
   }
@@ -1640,93 +1668,110 @@ function drawEnvironment() {
       }
   });
   
-  ctx.save();
-  const px = state.pond.x; 
-  const py = state.pond.y;
-  const baseR = state.pond.r; 
-
-  ctx.fillStyle = isAutumn ? "rgba(20, 30, 40, 0.95)" : "rgba(10, 30, 60, 0.9)"; 
-  ctx.beginPath();
-  ctx.moveTo(px, py); 
-  ctx.arc(px, py, baseR, 0, Math.PI * 2); 
-  ctx.fill();
-  ctx.fillStyle = isAutumn ? "rgba(35, 60, 70, 0.7)" : "rgba(43, 108, 176, 0.6)"; 
-  ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
-  ctx.fill();
-  const time = performance.now() * 0.001; 
-  ctx.globalCompositeOperation = "screen";
-  for (let i = 0; i < 3; i++) {
-      const waveOffset = Math.sin(time * 1.5 + i * 2) * 5;
-      const r = baseR * 0.9 - i * 40 + waveOffset; 
-      if (r <= 0) continue;
-      
+  if (isAutumn) {
+      // Uçurum / Kayalık Çizimi
+      ctx.fillStyle = "#2a1f18";
       ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = `rgba(150, 220, 255, ${0.15 - i * 0.05})`;
+      ctx.moveTo(-10, h - 80);
+      for(let i=0; i<=w+20; i+=30) {
+          ctx.lineTo(i, h - 80 + Math.sin(i*0.05)*15);
+      }
+      ctx.lineTo(w+10, h+10);
+      ctx.lineTo(-10, h+10);
+      ctx.fill();
+
+      ctx.strokeStyle = "#1a120c";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(-10, h - 80);
+      for(let i=0; i<=w+20; i+=30) {
+          ctx.lineTo(i, h - 80 + Math.sin(i*0.05)*15);
+      }
       ctx.stroke();
-  }
-  ctx.restore();
-  
-  // Gölet Üzerindeki Yapraklar
-  if (state.pondLeaves && isAutumn) {
-      state.pondLeaves.forEach(pl => {
+
+      // Etraftaki Kayalar
+      state.rocks.forEach(rock => {
           ctx.save();
-          let currentAng = pl.ang + time * 0.2 * pl.rotDir;
-          let lx = px + Math.cos(currentAng) * pl.dist;
-          let ly = py + Math.sin(currentAng) * pl.dist;
-          ctx.translate(lx, ly);
-          ctx.rotate(currentAng * 2);
-          ctx.fillStyle = pl.col;
-          ctx.beginPath();
-          ctx.moveTo(-4, 0);
-          ctx.quadraticCurveTo(0, -2, 4, 0);
-          ctx.quadraticCurveTo(0, 2, -4, 0);
-          ctx.fill();
+          ctx.translate(rock.x, rock.y);
+          ctx.fillStyle = "#4a4a4a";
+          ctx.beginPath(); ctx.ellipse(0, 0, rock.r, rock.r*0.7, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = "#5c5c5c";
+          ctx.beginPath(); ctx.ellipse(-rock.r*0.15, -rock.r*0.15, rock.r*0.6, rock.r*0.4, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = "#333";
+          ctx.beginPath(); ctx.ellipse(rock.r*0.3, rock.r*0.3, rock.r*0.4, rock.r*0.3, 0, 0, Math.PI*2); ctx.fill();
           ctx.restore();
       });
-  }
-  
-  if (!state.pond.fishCaughtToday) {
-    ctx.save();
-    const cx = px + baseR * 0.45; 
-    const cy = py - baseR * 0.45;
-    
-    const fishX = cx + Math.cos(time * 1.2) * (baseR * 0.25);
-    const fishY = cy + Math.sin(time * 1.2) * (baseR * 0.25);
-    const jumpSine = Math.sin(time * 2.5);
-    const jumpAmount = Math.max(0, jumpSine) * 15; 
-    
-    const isMovingRight = -Math.sin(time * 1.2) > 0;
-    
-    ctx.translate(fishX, fishY - jumpAmount);
-    if (isMovingRight) ctx.scale(-1, 1);
-      
-      let isBlue = currentFishingTier >= 3;
-      if (isBlue) ctx.scale(1.4, 1.4);
-      
-      ctx.globalAlpha = jumpAmount > 2 ? 1.0 : 0.4; 
-      
-      ctx.fillStyle = isBlue ? "#00e5ff" : "#ff7f50";
-      ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI*2); ctx.fill(); 
+  } else {
+      // Göl Çizimi (Bölüm 1 ve Survival)
+      ctx.save();
+      const px = state.pond.x; 
+      const py = state.pond.y;
+      const baseR = state.pond.r; 
+
+      ctx.fillStyle = "rgba(10, 30, 60, 0.9)"; 
       ctx.beginPath();
-      ctx.moveTo(8, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.fill(); 
-      ctx.fillStyle = isBlue ? "#00b0ff" : "#ff5722"; 
-      ctx.beginPath(); ctx.ellipse(0, -4, 3, 2, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -1, 1.5, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4.5, -1, 0.5, 0, Math.PI*2); ctx.fill();
+      ctx.moveTo(px, py); 
+      ctx.arc(px, py, baseR, 0, Math.PI * 2); 
+      ctx.fill();
+      ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
+      ctx.fill();
+      const time = performance.now() * 0.001; 
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 3; i++) {
+          const waveOffset = Math.sin(time * 1.5 + i * 2) * 5;
+          const r = baseR * 0.9 - i * 40 + waveOffset; 
+          if (r <= 0) continue;
+          
+          ctx.beginPath();
+          ctx.arc(px, py, r, 0, Math.PI * 2);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = `rgba(150, 220, 255, ${0.15 - i * 0.05})`;
+          ctx.stroke();
+      }
       ctx.restore();
-    
-    if (jumpAmount > 0 && jumpAmount < 6) {
+      
+      if (!state.pond.fishCaughtToday) {
         ctx.save();
-        ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-        ctx.beginPath();
-        ctx.ellipse(fishX, fishY + 2, 6 + Math.random() * 4, 2, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.restore();
-    }
+        const cx = px + baseR * 0.45; 
+        const cy = py - baseR * 0.45;
+        
+        const fishX = cx + Math.cos(time * 1.2) * (baseR * 0.25);
+        const fishY = cy + Math.sin(time * 1.2) * (baseR * 0.25);
+        const jumpSine = Math.sin(time * 2.5);
+        const jumpAmount = Math.max(0, jumpSine) * 15; 
+        
+        const isMovingRight = -Math.sin(time * 1.2) > 0;
+        
+        ctx.translate(fishX, fishY - jumpAmount);
+        if (isMovingRight) ctx.scale(-1, 1);
+          
+          let isBlue = currentFishingTier >= 3;
+          if (isBlue) ctx.scale(1.4, 1.4);
+          
+          ctx.globalAlpha = jumpAmount > 2 ? 1.0 : 0.4; 
+          
+          ctx.fillStyle = isBlue ? "#00e5ff" : "#ff7f50";
+          ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI*2); ctx.fill(); 
+          ctx.beginPath();
+          ctx.moveTo(8, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.fill(); 
+          ctx.fillStyle = isBlue ? "#00b0ff" : "#ff5722"; 
+          ctx.beginPath(); ctx.ellipse(0, -4, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -1, 1.5, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4.5, -1, 0.5, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        
+        if (jumpAmount > 0 && jumpAmount < 6) {
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+            ctx.beginPath();
+            ctx.ellipse(fishX, fishY + 2, 6 + Math.random() * 4, 2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+      }
   }
 }
 
@@ -2150,7 +2195,7 @@ function resetState() {
     
     controls.up = false;
     controls.down = false; controls.left = false; controls.right = false;
-    generateTrees();
+    generateEnvironment();
     seedWoods(); updateHud();
 }
 
