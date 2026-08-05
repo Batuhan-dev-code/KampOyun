@@ -59,6 +59,7 @@ const I18N = {
         packCamp: "🏕️ PACK CAMP",
         feedFire: "FEED FIRE",
         eat: "EAT",
+	trapCraft: "CRAFT TRAP (5🪵 1🍎)",
         fishing: "Fishing...",
         cooking: "Cooking...",
         searching: "Searching...",
@@ -72,7 +73,12 @@ const I18N = {
         statsTitle: "CAREER STATS",
         back: "BACK",
         resume: "RESUME",
-        mainMenu: "MAIN MENU"
+        mainMenu: "MAIN MENU",
+	trapCrafted: "TRAP CRAFTED!",
+        needMaterials: "NEED 5🪵 + 1🍎",
+        trapSet: "TRAP SET!",
+        stolen: "STOLEN!",
+        goldenWood: "GOLDEN WOOD!"
     },
     tr: {
         btnStory: "📖 HİKAYE MODU",
@@ -112,6 +118,7 @@ const I18N = {
         packCamp: "🏕️ KAMPI TOPLA",
         feedFire: "ATEŞİ BESLE",
         eat: "YEMEK YE",
+	trapCraft: "TUZAK KUR (5🪵 1🍎)",
         fishing: "Balık Tutuluyor...",
         cooking: "Pişiriliyor...",
         searching: "Aranıyor...",
@@ -125,7 +132,12 @@ const I18N = {
         statsTitle: "KARİYER STATLARIN",
         back: "GERİ",
         resume: "DEVAM ET",
-        mainMenu: "ANA MENÜ"
+        mainMenu: "ANA MENÜ",
+	trapCrafted: "TUZAK KURULDU!",
+        needMaterials: "5🪵 + 1🍎 GEREKLİ!",
+        trapSet: "TUZAK KURULDU!",
+        stolen: "ÇALINDI!",
+        goldenWood: "ALTIN ODUN!"
     }
 };
 
@@ -253,9 +265,10 @@ const state = {
   leafPiles: [], leafParticles: [], leafSpawnTimer: 0, pondLeaves: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
+  traps: [],
   maxCarry: 3, 
-  carried: { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0 },
-  tentStorage: { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 },
+  carried: { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 },
+  tentStorage: { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, meat: 0, cooked_meat: 0 },
   
   sessionGoldenWood: 0, 
   
@@ -479,6 +492,9 @@ function renderBagIcons() {
     if(state.carried.mushroom > 0) html += `<span>🍄${state.carried.mushroom}</span>`;
     if(state.carried.fish > 0) html += `<span>🐟${state.carried.fish}</span>`;
     if(state.carried.blue_fish > 0) html += `<span>💎🐟${state.carried.blue_fish}</span>`;
+if(state.carried.trap_kit > 0) html += `<span>🪤${state.carried.trap_kit}</span>`;
+    if(state.carried.meat > 0) html += `<span>🥩${state.carried.meat}</span>`;
+    if(state.carried.cooked_meat > 0) html += `<span>🍖${state.carried.cooked_meat}</span>`;
     if(currentCarry === 0) html += `<span style="color:#aaa;">${t("empty")}</span>`;
     html += `</div>`;
     return html; 
@@ -663,14 +679,19 @@ function updateHud() {
             ? `<div class="tent-item" style="background: rgba(52, 152, 219, 0.4); border: 1px solid #3498db; width: 100%; margin-bottom: 5px;" onpointerdown="depositItems(event)">${t("depositAll")}</div>` 
             : "";
 
-          const newTentHTML = depositBtn + `
+const newTentHTML = depositBtn + `
+              <div class="tent-item" style="background: rgba(139, 69, 19, 0.6); border: 1px solid #d2691e; width: 100%; margin-bottom: 5px;" onpointerdown="window.craftTrap(event)">🪤 ${t("trapCraft")}</div>
+              <div style="width: 100%; text-align: center; color: #ccc; font-size: 11px; margin-bottom: 4px;">-- DEPO --</div>
+              <div class="tent-item" style="border: 1px dashed #aaa; pointer-events: none; opacity: 0.8;">🪵 ${state.tentStorage.wood}</div>
               <div class="tent-item" onpointerdown="equipFood('apple', event)">🍎 ${state.tentStorage.apple}</div>
               <div class="tent-item" onpointerdown="equipFood('mushroom', event)">🍄 ${state.tentStorage.mushroom}</div>
               <div class="tent-item" onpointerdown="equipFood('fish', event)">🐟 ${state.tentStorage.fish}</div>
               ${state.tentStorage.blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('blue_fish', event)">💎🐟 ${state.tentStorage.blue_fish}</div>` : ""}
+              ${state.tentStorage.meat > 0 ? `<div class="tent-item" onpointerdown="equipFood('meat', event)">🥩 ${state.tentStorage.meat}</div>` : ""}
               ${state.tentStorage.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.tentStorage.cooked_blue_fish}</div>` : ""}
               ${state.tentStorage.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.tentStorage.cooked_mushroom}</div>` : ""}
               ${state.tentStorage.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.tentStorage.cooked_fish}</div>` : ""}
+              ${state.tentStorage.cooked_meat > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_meat', event)">🍖 ${state.tentStorage.cooked_meat}</div>` : ""}
               <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-top: 5px; width: 100%;" onpointerdown="packCampAndLeave(event)">${t("packCamp")}</div>
           `;
           if (tMenu.innerHTML !== newTentHTML) {
@@ -679,9 +700,12 @@ function updateHud() {
       }
   }
 
-  const mBtn = document.getElementById("mobileActionBtn");
+const mBtn = document.getElementById("mobileActionBtn");
   if (mBtn) {
-    if (state.equippedFood && state.equippedFood !== "fish" && state.equippedFood !== "blue_fish") { 
+      if (state.carried.trap_kit > 0) {
+          mBtn.innerHTML = "🪤 KUR";
+          mBtn.style.color = "#ffd700";
+      } else if (state.equippedFood && state.equippedFood !== "fish" && state.equippedFood !== "blue_fish" && state.equippedFood !== "meat") { 
           mBtn.innerHTML = t("eat");
           mBtn.style.color = "#4ade80"; 
       } else {
@@ -694,6 +718,100 @@ function updateHud() {
 function clampPlayer() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
 const half = getPlayerDrawSize() * 0.5; state.player.x = Math.min(w - half, Math.max(half, state.player.x || half));
 state.player.y = Math.min(h - half, Math.max(half, state.player.y || half)); }
+
+window.craftTrap = function(event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    
+    let tWood = Number(state.tentStorage.wood) || 0;
+    let cWood = Number(state.carried.wood) || 0;
+    let tApple = Number(state.tentStorage.apple) || 0;
+    let cApple = Number(state.carried.apple) || 0;
+    
+    let totalWood = tWood + cWood;
+    let totalApple = tApple + cApple;
+
+    if(totalWood >= 5 && totalApple >= 1) {
+        // Çantadaki mevcut toplam eşya sayısı
+        let currentCarry = (Number(state.carried.wood)||0) + (Number(state.carried.apple)||0) + 
+                           (Number(state.carried.mushroom)||0) + (Number(state.carried.fish)||0) + 
+                           (Number(state.carried.blue_fish)||0) + (Number(state.carried.trap_kit)||0) + 
+                           (Number(state.carried.meat)||0) + (Number(state.carried.cooked_meat)||0);
+        
+        let woodToDeduct = 5;
+        let carriedWoodUsed = Math.min(cWood, woodToDeduct);
+        
+        let appleToDeduct = 1;
+        let carriedAppleUsed = Math.min(cApple, appleToDeduct);
+        
+        // Yeni Çanta Kontrolü: Çantadan harcananları düş, üretilen tuzak kitini (+1) ekle
+        let simulatedCarry = currentCarry - carriedWoodUsed - carriedAppleUsed + 1;
+
+        if (simulatedCarry > state.maxCarry) {
+            state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("bagFull"), life: 1.5, color: "#ff4a4a" });
+            return;
+        }
+
+        // Malzemeleri sırasıyla çanta ve depodan düşüyoruz
+        state.carried.wood -= carriedWoodUsed;
+        state.tentStorage.wood -= (woodToDeduct - carriedWoodUsed);
+
+        state.carried.apple -= carriedAppleUsed;
+        state.tentStorage.apple -= (appleToDeduct - carriedAppleUsed);
+
+        // Tuzak kitini çantaya güvenle ekle
+        state.carried.trap_kit = (Number(state.carried.trap_kit) || 0) + 1;
+        
+        playSound(sounds.wood);
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: "TRAP CRAFTED!", life: 1.5, color: "#ffd700" });
+        updateHud();
+    } else {
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: "NEED 5🪵 + 1🍎", life: 1.5, color: "#ff4a4a" });
+    }
+};
+
+function placeTrap(x, y) {
+    if(state.carried.trap_kit > 0) {
+        state.carried.trap_kit--;
+        state.traps.push({ x: x, y: y, timer: 30, status: "active", result: null });
+        playSound(sounds.wood);
+        state.floatingTexts.push({ x: x, y: y - 20, text: "TRAP SET!", life: 1.5, color: "#ffd700" });
+        updateHud();
+    }
+}
+
+function updateTraps(dt) {
+    state.traps.forEach(trap => {
+        if(trap.status === "active") {
+            trap.timer -= dt;
+            if(trap.timer <= 0) {
+                trap.status = "resolved";
+                let d = dist(trap, state.fire);
+                let successChance = 0.2 + (d / 800); // Uzaklaştıkça şans artar (Hibrit sistem)
+                trap.result = (Math.random() < successChance) ? "meat" : "empty";
+            }
+        }
+    });
+}
+
+function drawTraps() {
+    state.traps.forEach(trap => {
+        ctx.save(); ctx.translate(trap.x, trap.y);
+        if(trap.status === "active") {
+            ctx.fillStyle = "#8b4513"; ctx.fillRect(-10, -10, 20, 20);
+            ctx.strokeStyle = "#5d2e0a"; ctx.lineWidth = 2; ctx.strokeRect(-10, -10, 20, 20);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
+            ctx.fillText(Math.ceil(trap.timer), 0, 4);
+        } else if(trap.status === "resolved") {
+            ctx.fillStyle = "#ff4a4a"; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            if(trap.result === "meat") {
+                ctx.fillStyle = "#fff"; ctx.font = "14px Arial"; ctx.fillText("🥩", 0, 5);
+            } else {
+                ctx.fillStyle = "#fff"; ctx.font = "14px Arial"; ctx.fillText("❌", 0, 5);
+            }
+        }
+        ctx.restore();
+    });
+}
 
 function collectItems() {
   let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
@@ -754,7 +872,24 @@ function collectItems() {
       state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("superMode"), life: 2.0, color: "#00ffff" }); 
       state.blueMushroom = null;
       state.blueMushroomTimer = 40 + Math.random() * 40; 
-  }  
+  }
+let currentCarryAfter = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+  state.traps = state.traps.filter(trap => {
+      if(trap.status === "resolved" && dist(state.player, trap) <= state.player.r + 20) {
+          if(trap.result === "meat" && currentCarryAfter < state.maxCarry) {
+              state.carried.meat++;
+              currentCarryAfter++;
+              playSound(sounds.wood);
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🥩", life: 1.5, color: "#ff4a4a" });
+              return false; // Tuzağı haritadan sil
+          } else if (trap.result === "empty") {
+              playSound(sounds.wood);
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "STOLEN!", life: 1.5, color: "#aaa" });
+              return false; // Tuzağı haritadan sil
+          }
+      }
+      return true;
+  });  
 }
 
 function spawnSmoke(x, y, count) { for (let i = 0; i < count; i++) { state.smokeParticles.push({ x: x + (Math.random() * 20 - 10), y: y + (Math.random() * 10 - 5), vx: (Math.random() * 15 - 7.5), vy: -(15 + Math.random() * 25), life: 1.0, decay: 0.4 + Math.random() * 0.6, r: 8 + Math.random() * 12 });
@@ -816,6 +951,9 @@ function feedFire() {
       } else if (state.equippedFood === "cooked_fish") {
           state.health = Math.min(100, state.health + 80);
           state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+80 HP", life: 1.5, color: "#4ade80" });
+} else if (state.equippedFood === "cooked_meat") {
+          state.health = Math.min(100, state.health + 60);
+          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+60 HP", life: 1.5, color: "#4ade80" });
       } else if (state.equippedFood === "cooked_blue_fish") {
           state.health = 100;
           state.superModeTimer = 16.0; 
@@ -1187,12 +1325,13 @@ function update(dt) {
   if (!state.cookTimer) state.cookTimer = 0;
   let dFire = dist(state.player, state.fire);
   let nearFire = dFire < state.fire.r + 40 && state.fire.level > 0;
-  if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fish" || state.equippedFood === "blue_fish")) {
+if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fish" || state.equippedFood === "blue_fish" || state.equippedFood === "meat")) {
       state.cookTimer += dt;
-      let reqTime = (state.equippedFood === "fish" || state.equippedFood === "blue_fish") ? 3.0 : 2.0;
+      let reqTime = (state.equippedFood === "fish" || state.equippedFood === "blue_fish" || state.equippedFood === "meat") ? 3.0 : 2.0;
       if (state.cookTimer >= reqTime) {
           if (state.equippedFood === "fish") state.equippedFood = "cooked_fish";
           else if (state.equippedFood === "blue_fish") state.equippedFood = "cooked_blue_fish";
+          else if (state.equippedFood === "meat") state.equippedFood = "cooked_meat";
           else state.equippedFood = "cooked_mushroom";
           state.cookTimer = 0;
           state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("cooked"), life: 1.5, color: "#ff9900" });
@@ -1250,7 +1389,7 @@ function update(dt) {
       } 
   }
   
-  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt); updateLeafParticles(dt);
+  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt); updateLeafParticles(dt); updateTraps(dt);
   
   state.health -= dt * 0.3;
   if (isMoving) state.health -= dt * 1.2; 
@@ -2028,7 +2167,7 @@ function draw() {
   drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); 
   drawLeafPiles();
   
-  drawPlayerSprite(); drawFloatingTexts(); drawLeafParticles();
+  drawPlayerSprite(); drawFloatingTexts(); drawLeafParticles(); drawTraps();
   
   const cw = canvas.clientWidth || 800; const ch = canvas.clientHeight || 600;
   if (state.dayMessageTimer > 0) { ctx.save();
@@ -2092,7 +2231,9 @@ function draw() {
       if (state.equippedFood === "fish") icon = "🐟";
       if (state.equippedFood === "cooked_fish") icon = "🍣";
       if (state.equippedFood === "blue_fish") icon = "💎🐟";
-      if (state.equippedFood === "cooked_blue_fish") icon = "💎🍣";    
+      if (state.equippedFood === "cooked_blue_fish") icon = "💎🍣";
+if (state.equippedFood === "meat") icon = "🥩";
+if (state.equippedFood === "cooked_meat") icon = "🍖";    
       ctx.font = "20px Arial"; ctx.textAlign = "center";
       let offsetY = (state.cookTimer > 0 || state.pond.fishProgress > 0) ? 75 : 55;
       let countText = state.equippedCount > 1 ? " x" + state.equippedCount : "";
@@ -2109,9 +2250,10 @@ function resetState() {
     state.health = 100; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
     state.sessionGoldenWood = 0;
     
-    state.carried = { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0 };
-    state.tentStorage = { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0 };
+    state.carried = { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 };
+    state.tentStorage = { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 };
     
+state.traps = [];
     updateMaxCarryCapacity();
     updatePetStats();
     
@@ -2220,6 +2362,10 @@ const maxJoyRadius = 40;
 function handlePointerDown(e) {
     if (state.gameOver || state.status !== "PLAYING") return;
     initAudio();
+if (state.carried.trap_kit > 0) {
+        placeTrap(state.player.x, state.player.y);
+        return; 
+    }
     joystickActive = true;
     const rect = joystickZone.getBoundingClientRect();
     joyBaseX = e.clientX - rect.left;
@@ -2278,7 +2424,13 @@ if(mobileActionBtn) {
     mobileActionBtn.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         initAudio();
-        if(state.status === "PLAYING") feedFire();
+        if(state.status === "PLAYING") {
+            if (state.carried.trap_kit > 0) {
+                placeTrap(state.player.x, state.player.y);
+            } else {
+                feedFire();
+            }
+        }
     });
     mobileActionBtn.addEventListener("contextmenu", e => e.preventDefault());
 }
