@@ -758,14 +758,16 @@ window.craftTrap = function(event) {
         state.carried.apple -= carriedAppleUsed;
         state.tentStorage.apple -= (appleToDeduct - carriedAppleUsed);
 
-        // Tuzak kitini çantaya güvenle ekle
+// Tuzak kitini çantaya güvenle ekle
         state.carried.trap_kit = (Number(state.carried.trap_kit) || 0) + 1;
         
         playSound(sounds.wood);
-        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: "TRAP CRAFTED!", life: 1.5, color: "#ffd700" });
+        // "TRAP CRAFTED!" yerine t("trapCrafted") yazıyoruz
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("trapCrafted"), life: 1.5, color: "#ffd700" });
         updateHud();
     } else {
-        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: "NEED 5🪵 + 1🍎", life: 1.5, color: "#ff4a4a" });
+        // "NEED 5🪵 + 1🍎" yerine t("needMaterials") yazıyoruz
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("needMaterials"), life: 1.5, color: "#ff4a4a" });
     }
 };
 
@@ -774,7 +776,8 @@ function placeTrap(x, y) {
         state.carried.trap_kit--;
         state.traps.push({ x: x, y: y, timer: 30, status: "active", result: null });
         playSound(sounds.wood);
-        state.floatingTexts.push({ x: x, y: y - 20, text: "TRAP SET!", life: 1.5, color: "#ffd700" });
+        // "TRAP SET!" metni t("trapSet") olarak değiştirildi
+        state.floatingTexts.push({ x: x, y: y - 20, text: t("trapSet"), life: 1.5, color: "#ffd700" });
         updateHud();
     }
 }
@@ -795,18 +798,52 @@ function updateTraps(dt) {
 
 function drawTraps() {
     state.traps.forEach(trap => {
-        ctx.save(); ctx.translate(trap.x, trap.y);
+        ctx.save(); 
+        ctx.translate(trap.x, trap.y);
+        
         if(trap.status === "active") {
-            ctx.fillStyle = "#8b4513"; ctx.fillRect(-10, -10, 20, 20);
-            ctx.strokeStyle = "#5d2e0a"; ctx.lineWidth = 2; ctx.strokeRect(-10, -10, 20, 20);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
-            ctx.fillText(Math.ceil(trap.timer), 0, 4);
+            // İlkel çubuk mekanizması
+            ctx.strokeStyle = "#4a3320"; 
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-10, -10); ctx.lineTo(10, 10);
+            ctx.moveTo(10, -10); ctx.lineTo(-10, 10);
+            ctx.moveTo(0, -12); ctx.lineTo(0, 12);
+            ctx.moveTo(-12, 0); ctx.lineTo(12, 0);
+            ctx.stroke();
+
+            // Merkezdeki yem (Elma parçası)
+            ctx.fillStyle = "#ff1a1a";
+            ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+
+            // Havada asılı geri sayım (Kutusuz, daha şık)
+            ctx.fillStyle = "#ffd700"; 
+            ctx.font = "bold 13px Arial"; 
+            ctx.textAlign = "center";
+            ctx.shadowColor = "#000"; 
+            ctx.shadowBlur = 4;
+            ctx.fillText(Math.ceil(trap.timer), 0, -18);
+            
         } else if(trap.status === "resolved") {
-            ctx.fillStyle = "#ff4a4a"; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            // Dağılmış / Kırılmış çubuklar
+            ctx.strokeStyle = "#3a2310"; 
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-12, -8); ctx.lineTo(-4, -2);
+            ctx.moveTo(12, 10); ctx.lineTo(5, 5);
+            ctx.moveTo(-8, 12); ctx.lineTo(-2, 6);
+            ctx.stroke();
+
             if(trap.result === "meat") {
-                ctx.fillStyle = "#fff"; ctx.font = "14px Arial"; ctx.fillText("🥩", 0, 5);
+                // Et görseli
+                ctx.fillStyle = "#fff"; ctx.font = "16px Arial"; ctx.textAlign = "center";
+                ctx.shadowColor = "transparent";
+                ctx.fillText("🥩", 0, 4);
             } else {
-                ctx.fillStyle = "#fff"; ctx.font = "14px Arial"; ctx.fillText("❌", 0, 5);
+                // Boş/Çalınmış işareti
+                ctx.fillStyle = "#fff"; ctx.font = "14px Arial"; ctx.textAlign = "center";
+                ctx.shadowColor = "transparent";
+                ctx.fillText("❌", 0, 4);
             }
         }
         ctx.restore();
@@ -822,7 +859,8 @@ function collectItems() {
               state.sessionGoldenWood++;
               state.score += 50;
               playSound(sounds.wood);
-              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: "GOLDEN WOOD!", life: 1.5, color: "#ffd700" });
+              // "GOLDEN WOOD!" metni t("goldenWood") olarak değiştirildi
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("goldenWood"), life: 1.5, color: "#ffd700" });
               state.pendingWoodRespawns++;
               return false;
           } else {
@@ -884,7 +922,7 @@ let currentCarryAfter = Object.values(state.carried).reduce((a,b)=>a+b, 0);
               return false; // Tuzağı haritadan sil
           } else if (trap.result === "empty") {
               playSound(sounds.wood);
-              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "STOLEN!", life: 1.5, color: "#aaa" });
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: t("stolen"), life: 1.5, color: "#aaa" });
               return false; // Tuzağı haritadan sil
           }
       }
@@ -1095,7 +1133,7 @@ function updateRaccoons(dt) {
       if (nearestWood) { let angle = Math.atan2(nearestWood.y - rac.y, nearestWood.x - rac.x); if (isNaN(angle)) angle = 0;
       rac.x += Math.cos(angle) * rac.speed * dt; rac.y += Math.sin(angle) * rac.speed * dt + Math.sin(rac.wobble) * 2;
       rac.fleeAngle = null; if (dist(rac, nearestWood) < rac.r + nearestWood.r) { state.woods = state.woods.filter(w => w !== nearestWood); state.pendingWoodRespawns++;
-      rac.hasWood = true; state.floatingTexts.push({ x: rac.x, y: rac.y - 20, text: "STOLEN!", life: 1.5, color: "#ff9900" });
+      rac.hasWood = true; state.floatingTexts.push({ x: rac.x, y: rac.y - 20, text: t("stolen"), life: 1.5, color: "#ff9900" });
       } } } else { rac.x += Math.cos(rac.wobble * 0.1) * rac.speed * 0.3 * dt;
       rac.y += Math.sin(rac.wobble * 0.1) * rac.speed * 0.3 * dt;
       } } }
