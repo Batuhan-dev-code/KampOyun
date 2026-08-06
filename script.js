@@ -2,8 +2,8 @@
 // Altın hilesini açmak için aşağıdaki satırın başındaki "//" işaretlerini sil.
 // localStorage.setItem("campfireGoldenWood", 5000);
 
-// Direk 2. Bölümden başlamak için aşağıdaki satırı ekledik:
-localStorage.setItem("campfireCurrentStoryLevel", 2);
+// Direk 3. Bölümden başlamak için aşağıdaki satırı ekledik:
+localStorage.setItem("campfireCurrentStoryLevel", 3);
 // =======================================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -32,6 +32,8 @@ const I18N = {
         intro1Text: "My plane crashed... I'm lucky to be alive, but the radio is shattered. The map shows an old communication tower in the snowy mountains to the North. I must reach it, but first I need to gather my strength. I must survive for at least 3 days, pack my camp, and set off.",
         intro2Title: "CHAPTER 2: THE HOWL",
         intro2Text: "I've passed the forest, but the wind at the rocky foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
+	intro3Title: "CHAPTER 3: FROZEN PEAK",
+        intro3Text: "We've reached the peak. The radio tower is right ahead, but everything is frozen solid. I must keep a massive fire going for 7 days until the generator thaws, and fight against the freezing cold.",
         clickToContinue: "- CLICK TO CONTINUE -",
         tooDangerous: "TOO DANGEROUS NOW!",
         notReady: "NOT READY TO TRAVEL YET!",
@@ -52,6 +54,7 @@ const I18N = {
         safelyExtracted: "SAFELY EXTRACTED!",
         lvl1Complete: "CHAPTER 1 COMPLETED!",
         lvl2Complete: "CHAPTER 2 COMPLETED!",
+	lvl3Complete: "CHAPTER 3 COMPLETED!",
         day: "Day",
         score: "Score",
         empty: "Empty",
@@ -91,6 +94,8 @@ const I18N = {
         intro1Text: "Uçağım düştü... Şanslıyım ki hayattayım ama telsiz parçalandı. Haritaya göre Kuzeydeki karlı dağlarda eski bir iletişim kulesi var. Oraya ulaşmalıyım ama önce toparlanmam lazım. En az 3 gün hayatta kalıp, kampı toplayarak yola çıkmalıyım.",
         intro2Title: "BÖLÜM 2: ULUMA",
         intro2Text: "Ormanı aştım ama kayalık tepelerde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
+	intro3Title: "BÖLÜM 3: DONDURUCU ZİRVE",
+        intro3Text: "Zirveye ulaştık. Radyo kulesi tam karşımda ama her yer buz tutmuş durumda. Jeneratörün buzu çözülene kadar 7 gün boyunca ateşi korumalı ve dondurucu soğukla savaşmalıyım.",
         clickToContinue: "- DEVAM ETMEK İÇİN TIKLA -",
         tooDangerous: "ŞU AN ÇOK TEHLİKELİ!",
         notReady: "HENÜZ YOLA ÇIKMAYA HAZIR DEĞİLSİN!",
@@ -111,6 +116,7 @@ const I18N = {
         safelyExtracted: "GÜVENLE KAÇILDI!",
         lvl1Complete: "1. BÖLÜM TAMAMLANDI!",
         lvl2Complete: "2. BÖLÜM TAMAMLANDI!",
+	lvl3Complete: "3. BÖLÜM TAMAMLANDI!",
         day: "Gün",
         score: "Skor",
         empty: "Boş",
@@ -261,7 +267,7 @@ const state = {
   player: { x: 100, y: 100, r: 14, speed: 170, dir: "down" },
   pet: { x: 120, y: 120, r: 8, targetX: 120, targetY: 120, speed: 155, isSitting: true, isSleeping: false, angle: 0, fetchTimer: 15, isFetching: false, hasWood: false },
   fire: { x: 0, y: 0, r: 22, level: 100, currentFrame: 0, animationTimer: 0 }, tent: { x: 0, y: 0, r: 40 },
-  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], rocks: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [],
+  woods: [], mushrooms: [], blueMushroom: null, enemies: [], trees: [], rocks: [], smokeParticles: [], sparks: [], floatingTexts: [], playerTrails: [], raccoons: [], windParticles: [], rainDrops: [], snowFlakes: [],
   leafPiles: [], leafParticles: [], leafSpawnTimer: 0, pondLeaves: [],
   pendingWoodRespawns: 0, woodRespawnTimer: 0, targetWoodCount: 7, pendingMushroomRespawns: 0, mushroomRespawnTimer: 0, targetMushroomCount: 2, blueMushroomTimer: 30 + Math.random() * 30, superModeTimer: 0, raccoonSpawnTimer: 15, windTimer: 20 + Math.random() * 30, windDuration: 0, rainTimer: 30 + Math.random() * 40, rainDuration: 0,
   
@@ -1163,6 +1169,31 @@ function updateRain(dt) {
       if (drop.y > (canvas.clientHeight || 600)) { state.rainDrops.splice(i, 1); } }
 }
 
+function updateSnow(dt) {
+    if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
+    
+    if (Math.random() < 30 * dt) {
+        state.snowFlakes.push({
+            x: Math.random() * ((canvas.clientWidth || 800) + 100),
+            y: -10,
+            r: 1.5 + Math.random() * 2.5,
+            speedY: 40 + Math.random() * 60,
+            speedX: -20 - Math.random() * 30,
+            wobble: Math.random() * Math.PI * 2
+        });
+    }
+
+    for (let i = state.snowFlakes.length - 1; i >= 0; i--) {
+        let sf = state.snowFlakes[i];
+        sf.wobble += dt * 2;
+        sf.y += sf.speedY * dt;
+        sf.x += (sf.speedX + Math.sin(sf.wobble) * 15) * dt;
+        if (sf.y > (canvas.clientHeight || 600) || sf.x < -20) {
+            state.snowFlakes.splice(i, 1);
+        }
+    }
+}
+
 function updateWalkAnimation(dt, isMoving) {
   const frameW = spriteFrames.walk.w;
   const availableCols = Math.max(1, Math.floor((walkIdleSprite.naturalWidth || frameW) / frameW)); const walkCols = Math.min(WALK_MAX_FRAMES, Math.max(1, availableCols - WALK_START_COL));
@@ -1427,7 +1458,7 @@ if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fi
       } 
   }
   
-  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateRain(dt); updateFireAnimation(dt); updateLeafParticles(dt); updateTraps(dt);
+  updatePet(dt); updateRaccoons(dt); updateSmoke(dt); updateSparks(dt); updateFloatingTexts(dt); updateWind(dt); updateSnow(dt); updateRain(dt); updateFireAnimation(dt); updateLeafParticles(dt); updateTraps(dt);
   
   state.health -= dt * 0.3;
   if (isMoving) state.health -= dt * 1.2; 
@@ -1763,6 +1794,17 @@ function drawRain() { if (state.rainDuration <= 0 && state.rainDrops.length === 
   } ctx.strokeStyle = "rgba(150, 180, 255, 0.4)"; ctx.lineWidth = 1.5; ctx.beginPath();
   state.rainDrops.forEach(drop => { ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x - (drop.length * 0.1), drop.y + drop.length); }); ctx.stroke(); ctx.restore();
 }
+function drawSnow() {
+    if (state.snowFlakes.length === 0) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    state.snowFlakes.forEach(sf => {
+        ctx.beginPath();
+        ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.restore();
+}
 function drawLeafParticles() {
     state.leafParticles.forEach(lp => {
         ctx.save();
@@ -1814,8 +1856,9 @@ function drawEnvironment() {
   const w = (canvas.clientWidth || 800) + 10; const h = (canvas.clientHeight || 600) + 10;
   
   let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
   
-  let groundColor = isAutumn ? "#3d2b1c" : "#1e3d1c";
+  let groundColor = isSnow ? "#d0e8f2" : (isAutumn ? "#3d2b1c" : "#1e3d1c");
   ctx.fillStyle = groundColor; 
   ctx.fillRect(-5, -5, w, h);
   
@@ -1826,9 +1869,9 @@ function drawEnvironment() {
   ctx.fillStyle = "#4a3525"; ctx.beginPath();
   ctx.ellipse(state.fire.x, state.fire.y - 20, 170, 100, 0, 0, Math.PI * 2); ctx.fill();
   
-  state.trees.forEach(tree => { 
+state.trees.forEach(tree => { 
       if(tree.isDead) {
-          ctx.strokeStyle = "#2c1c11";
+          ctx.strokeStyle = isSnow ? "#1a2a3a" : "#2c1c11";
           ctx.lineWidth = 4;
           ctx.beginPath();
           ctx.moveTo(tree.x, tree.y + 10);
@@ -1839,9 +1882,16 @@ function drawEnvironment() {
           ctx.lineTo(tree.x + tree.r*0.5, tree.y - tree.r*0.9);
           ctx.stroke();
       } else {
-          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); 
-          ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); 
-          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); 
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); 
+          let treeColor = isSnow ? "#2d5a3f" : tree.color;
+          ctx.fillStyle = treeColor; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); 
+          
+          if(isSnow) {
+              // 3. Bölüm için karlı ağaç tepesi
+              ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(tree.x - tree.r*0.2, tree.y - tree.r*0.2, tree.r * 0.6, 0, Math.PI*2); ctx.fill();
+          } else {
+              ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); 
+          }
       }
   });
   
@@ -1950,6 +2000,61 @@ function drawEnvironment() {
         }
       }
   }
+}
+
+function drawRadioTower() {
+    if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
+    
+    const tx = state.tent.x;
+    const ty = state.tent.y - 70;
+
+    ctx.save();
+    // Metal Kule İskeleti
+    ctx.strokeStyle = "#4a5568";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(tx - 25, ty + 20); ctx.lineTo(tx, ty - 90);
+    ctx.moveTo(tx + 25, ty + 20); ctx.lineTo(tx, ty - 90);
+    // Çapraz Demirler
+    ctx.moveTo(tx - 18, ty); ctx.lineTo(tx + 18, ty);
+    ctx.moveTo(tx - 12, ty - 35); ctx.lineTo(tx + 12, ty - 35);
+    ctx.moveTo(tx - 18, ty + 20); ctx.lineTo(tx + 12, ty - 35);
+    ctx.moveTo(tx + 18, ty + 20); ctx.lineTo(tx - 12, ty - 35);
+    ctx.stroke();
+
+    // Yanıp Sönen Kırmızı Sinyal Işığı
+    ctx.fillStyle = (Math.floor(performance.now() / 500) % 2 === 0) ? "#ff0000" : "#500000";
+    ctx.beginPath(); ctx.arc(tx, ty - 92, 4, 0, Math.PI*2); ctx.fill();
+
+    // Jeneratör Kutusu
+    const gx = tx + 40;
+    const gy = ty + 10;
+    ctx.fillStyle = "#2d3748";
+    ctx.fillRect(gx - 15, gy - 15, 30, 25);
+    ctx.strokeStyle = "#1a202c";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(gx - 15, gy - 15, 30, 25);
+
+    // Gün Geçtikçe Eriyen Buz Katmanı (7 Günlük erime oranı)
+    let iceProgress = Math.min(1, (state.currentDay - 1) / 6); // 0 (tam buz) ile 1 (tam erimiş) arası
+    let iceOpacity = 0.85 - (iceProgress * 0.85);
+
+    if (iceOpacity > 0.05) {
+        ctx.fillStyle = `rgba(180, 225, 255, ${iceOpacity})`;
+        ctx.fillRect(gx - 18, gy - 18, 36, 31);
+        // Sarkıtlar
+        ctx.fillStyle = `rgba(220, 245, 255, ${iceOpacity})`;
+        ctx.beginPath();
+        ctx.moveTo(gx - 12, gy + 13); ctx.lineTo(gx - 8, gy + 22); ctx.lineTo(gx - 4, gy + 13);
+        ctx.moveTo(gx + 2, gy + 13); ctx.lineTo(gx + 6, gy + 25); ctx.lineTo(gx + 10, gy + 13);
+        ctx.fill();
+    } else {
+        // Tamamen eridiğinde yeşil çalışma ışığı
+        ctx.fillStyle = "#4ade80";
+        ctx.beginPath(); ctx.arc(gx, gy - 5, 3, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.restore();
 }
 
 function drawTent() {
@@ -2173,7 +2278,7 @@ function draw() {
   state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false));
   state.apples.forEach(apple => drawApple(apple.x, apple.y));
   if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
-  drawTent(); drawCampfireBase(); drawFireSprite();
+  drawRadioTower(); drawTent(); drawCampfireBase(); drawFireSprite();
   drawSparks(); drawSmoke();
   const darkFactor = nightBlend();
   if (darkFactor > 0) { 
@@ -2202,7 +2307,7 @@ function draw() {
       ctx.restore();
   }
 
-  drawPlayerTrails(); drawWind(); drawRain(); drawRaccoons(); drawPet(); 
+  drawPlayerTrails(); drawWind(); drawSnow(); drawRain(); drawRaccoons(); drawPet(); 
   drawLeafPiles();
   
   drawPlayerSprite(); drawFloatingTexts(); drawLeafParticles(); drawTraps();
@@ -2507,6 +2612,10 @@ function setupMainMenu() {
             });
         } else if (state.currentLevel === 2) {
             playIntro(t("intro2Title"), t("intro2Text"), () => {
+                initAudio(); state.status = "PLAYING"; 
+            });
+        } else if (state.currentLevel === 3) {
+            playIntro(t("intro3Title"), t("intro3Text"), () => {
                 initAudio(); state.status = "PLAYING"; 
             });
         } else {
