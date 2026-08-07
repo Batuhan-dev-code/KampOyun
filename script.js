@@ -570,10 +570,22 @@ if (!candidates.length) return null; candidates.sort((a, b) => a.score - b.score
 
 function isPointInPond(px, py) {
     let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
+    let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    
     if (isAutumn) {
         const h = canvas.clientHeight || 600;
         return py > h - 100; 
     }
+    
+    if (isSnow) {
+        let pondX = 40; // Kırmızı çizilen yerin X hizası
+        let pondY = state.fire.y + 120; // Kırmızı çizilen yerin Y hizası
+        // Elips alan çarpışma kontrolü
+        let dx = (px - pondX) / 60; // Yatay yarıçap
+        let dy = (py - pondY) / 35; // Dikey yarıçap
+        return (dx * dx + dy * dy) <= 1;
+    }
+    
     return dist({x: px, y: py}, {x: state.pond.x, y: state.pond.y}) < state.pond.r;
 }
 
@@ -593,9 +605,16 @@ function generateEnvironment() {
         }
     }
     
-    for (let i = 0; i < 70; i++) { 
+let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    let treeCount = isSnow ? 25 : 70;
+    
+    for (let i = 0; i < treeCount; i++) { 
         let tx = Math.random() * w;
         let ty = Math.random() * h; 
+        
+        // 3. Bölümde uzaktaki dağların (y < 160) üzerine ağaç basmıyoruz
+        if (isSnow && ty < 160) continue;
+
         if (dist({ x: tx, y: ty }, state.fire) > 230 && !isPointInPond(tx, ty)) { 
             let c1 = isAutumn ? "#8b4513" : "#142e12";
             let c2 = isAutumn ? "#a0522d" : "#1a3a17";
@@ -611,32 +630,91 @@ function resizeCanvas() {
   canvas.height = Math.floor(rect.height * ratio); ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.imageSmoothingEnabled = false;
   state.fire.x = rect.width * 0.5;
   state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85;
-  state.pond.x = 0; state.pond.y = rect.height; state.pond.r = rect.width * 0.35;
+  
+ // Göl pozisyonu güncellemesi
+  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  if (isSnow) {
+      state.pond.x = 40;
+      state.pond.y = state.fire.y + 120;
+      state.pond.r = 50;
+  } else {
+      state.pond.x = 0; 
+      state.pond.y = rect.height; 
+      state.pond.r = rect.width * 0.35;
+  }
+
   if (state.trees.length === 0) generateEnvironment();
 }
 
 function dist(a, b) { let d = Math.hypot(a.x - b.x, a.y - b.y);
 return isNaN(d) ? 9999 : d; }
 
-function randomWood() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
-const isGold = Math.random() < 0.15; for (let i = 0; i < 20; i += 1) { const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold };
-if (dist(wood, state.fire) > state.fire.r + 60 && dist(wood, state.player) > state.player.r + 30 && !isPointInPond(wood.x, wood.y)) return wood;
-} return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold };
+function randomWood() { 
+    const w = canvas.clientWidth || 800; 
+    const h = canvas.clientHeight || 600;
+    const isGold = Math.random() < 0.15; 
+    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
+
+    for (let i = 0; i < 20; i += 1) { 
+        const wood = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold };
+        
+        let validPos = dist(wood, state.fire) > state.fire.r + 60 && 
+                       dist(wood, state.player) > state.player.r + 30 && 
+                       !isPointInPond(wood.x, wood.y);
+                       
+        // Bölüm 3 için kuleye ve üst/alt sınırlara çok yakın doğmasını engelle
+        if (isSnow) {
+            if (dist(wood, towerPos) < 55 || wood.y < 120 || wood.y > h - 90) validPos = false;
+        }
+
+        if (validPos) return wood;
+    } 
+    return { x: 20 + Math.random() * (w - 40), y: 150 + Math.random() * (h - 250), r: 10, angle: Math.random() * Math.PI * 2, isGolden: isGold };
 }
 
-function randomMushroom() { const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
-for (let i = 0; i < 20; i += 1) { const mushroom = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 };
-if (dist(mushroom, state.fire) > state.fire.r + 80 && dist(mushroom, state.player) > state.player.r + 30 && !isPointInPond(mushroom.x, mushroom.y)) return mushroom;
-} return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 };
+function randomMushroom() { 
+    const w = canvas.clientWidth || 800; 
+    const h = canvas.clientHeight || 600;
+    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
+
+    for (let i = 0; i < 20; i += 1) { 
+        const mushroom = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 8 };
+        
+        let validPos = dist(mushroom, state.fire) > state.fire.r + 80 && 
+                       dist(mushroom, state.player) > state.player.r + 30 && 
+                       !isPointInPond(mushroom.x, mushroom.y);
+
+        if (isSnow) {
+            if (dist(mushroom, towerPos) < 55 || mushroom.y < 120 || mushroom.y > h - 90) validPos = false;
+        }
+
+        if (validPos) return mushroom;
+    } 
+    return { x: 20 + Math.random() * (w - 40), y: 150 + Math.random() * (h - 250), r: 8 };
 }
 
 function randomApple() { 
-  const w = canvas.clientWidth || 800; const h = canvas.clientHeight || 600;
-  for (let i = 0; i < 20; i += 1) { 
-      const apple = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 };
-      if (dist(apple, state.fire) > state.fire.r + 80 && dist(apple, state.player) > state.player.r + 30 && !isPointInPond(apple.x, apple.y)) return apple;
-  } 
-  return { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 };
+    const w = canvas.clientWidth || 800; 
+    const h = canvas.clientHeight || 600;
+    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
+
+    for (let i = 0; i < 20; i += 1) { 
+        const apple = { x: 20 + Math.random() * (w - 40), y: 20 + Math.random() * (h - 40), r: 6 };
+        
+        let validPos = dist(apple, state.fire) > state.fire.r + 80 && 
+                       dist(apple, state.player) > state.player.r + 30 && 
+                       !isPointInPond(apple.x, apple.y);
+
+        if (isSnow) {
+            if (dist(apple, towerPos) < 55 || apple.y < 120 || apple.y > h - 90) validPos = false;
+        }
+
+        if (validPos) return apple;
+    } 
+    return { x: 20 + Math.random() * (w - 40), y: 150 + Math.random() * (h - 250), r: 6 };
 }
 
 function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0;
@@ -1159,7 +1237,13 @@ function updateRespawns(dt) {
 }
 
 function updateRain(dt) {
-  if (state.windDuration > 0) return;
+// Bölüm 3'te yağmur yağmasın
+  if (state.gameMode === "STORY" && state.currentLevel === 3) {
+      state.rainDuration = 0;
+      state.rainDrops = [];
+      return;
+  }  
+if (state.windDuration > 0) return;
   if (state.rainDuration > 0) { state.rainDuration -= dt; if (Math.random() < 40 * dt) { state.rainDrops.push({ x: Math.random() * (canvas.clientWidth || 800), y: -10, length: 15 + Math.random() * 10, speed: 600 + Math.random() * 200 });
       } if (state.rainDuration <= 0) state.rainTimer = 60 + Math.random() * 60; } else { state.rainTimer -= dt;
       if (state.rainTimer <= 0) state.rainDuration = 10 + Math.random() * 10;
@@ -1172,13 +1256,16 @@ function updateRain(dt) {
 function updateSnow(dt) {
     if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
     
-    if (Math.random() < 30 * dt) {
+    let isStorm = state.windDuration > 0;
+    let spawnRate = isStorm ? 100 : 30; // Fırtınada kar sayısı artar
+
+    if (Math.random() < spawnRate * dt) {
         state.snowFlakes.push({
-            x: Math.random() * ((canvas.clientWidth || 800) + 100),
+            x: Math.random() * ((canvas.clientWidth || 800) + 200),
             y: -10,
             r: 1.5 + Math.random() * 2.5,
-            speedY: 40 + Math.random() * 60,
-            speedX: -20 - Math.random() * 30,
+            speedY: isStorm ? 120 + Math.random() * 100 : 40 + Math.random() * 60,
+            speedX: isStorm ? -350 - Math.random() * 250 : -20 - Math.random() * 30, // Fırtınada sola sert uçar
             wobble: Math.random() * Math.PI * 2
         });
     }
@@ -1188,7 +1275,7 @@ function updateSnow(dt) {
         sf.wobble += dt * 2;
         sf.y += sf.speedY * dt;
         sf.x += (sf.speedX + Math.sin(sf.wobble) * 15) * dt;
-        if (sf.y > (canvas.clientHeight || 600) || sf.x < -20) {
+        if (sf.y > (canvas.clientHeight || 600) || sf.x < -100) {
             state.snowFlakes.splice(i, 1);
         }
     }
@@ -1407,11 +1494,36 @@ if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fi
       }
   } else { state.cookTimer = 0; }
 
-  let dTent = dist(state.player, state.tent);
+ let dTent = dist(state.player, state.tent);
   if (dTent < state.player.r + state.tent.r - 10) { 
       let angle = Math.atan2(state.player.y - state.tent.y, state.player.x - state.tent.x);
       state.player.x = state.tent.x + Math.cos(angle) * (state.player.r + state.tent.r - 10);
       state.player.y = state.tent.y + Math.sin(angle) * (state.player.r + state.tent.r - 10);
+  }
+
+  // Kule ve Jeneratör Çarpışma Kontrolü (Bölüm 3)
+  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  if (isSnow) {
+      const tx = state.fire.x + 110;
+      const ty = state.fire.y - 10;
+
+      // 1. Kule İskeleti Gövdesi
+      const towerBase = { x: tx, y: ty - 25 };
+      let dTower = dist(state.player, towerBase);
+      if (dTower < state.player.r + 30) {
+          let angle = Math.atan2(state.player.y - towerBase.y, state.player.x - towerBase.x);
+          state.player.x = towerBase.x + Math.cos(angle) * (state.player.r + 30);
+          state.player.y = towerBase.y + Math.sin(angle) * (state.player.r + 30);
+      }
+
+      // 2. Jeneratör Kutusu Alanı
+      const genBase = { x: tx - 30, y: ty + 15 };
+      let dGen = dist(state.player, genBase);
+      if (dGen < state.player.r + 25) {
+          let angle = Math.atan2(state.player.y - genBase.y, state.player.x - genBase.x);
+          state.player.x = genBase.x + Math.cos(angle) * (state.player.r + 25);
+          state.player.y = genBase.y + Math.sin(angle) * (state.player.r + 25);
+      }
   }
   
   let fireColRadius = state.fire.r - 8;
@@ -1786,8 +1898,20 @@ function drawFloatingTexts() { state.floatingTexts.forEach(ft => { ctx.save(); c
 }
 function drawPlayerTrails() { state.playerTrails.forEach(t => { ctx.save(); ctx.globalAlpha = Math.max(0, t.life * 2); ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(t.x, t.y, state.player.r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
 }
-function drawWind() { if (state.windParticles.length === 0) return; ctx.save(); ctx.strokeStyle = "rgba(200, 220, 255, 0.4)"; ctx.lineWidth = 2; ctx.beginPath();
-  state.windParticles.forEach(wp => { ctx.moveTo(wp.x, wp.y); ctx.lineTo(wp.x + wp.length, wp.y); }); ctx.stroke(); ctx.restore();
+function drawWind() { 
+  if (state.windParticles.length === 0) return; 
+  ctx.save(); 
+  
+  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  ctx.strokeStyle = isSnow ? "rgba(255, 255, 255, 0.7)" : "rgba(200, 220, 255, 0.4)"; 
+  ctx.lineWidth = isSnow ? 3 : 2; 
+  ctx.beginPath();
+  state.windParticles.forEach(wp => { 
+      ctx.moveTo(wp.x, wp.y); 
+      ctx.lineTo(wp.x + wp.length, wp.y); 
+  }); 
+  ctx.stroke(); 
+  ctx.restore();
 }
 function drawRain() { if (state.rainDuration <= 0 && state.rainDrops.length === 0) return; ctx.save();
   if (state.rainDuration > 0) { ctx.fillStyle = "rgba(20, 30, 50, 0.25)"; ctx.fillRect(0, 0, canvas.clientWidth || 800, canvas.clientHeight || 600);
@@ -1797,11 +1921,23 @@ function drawRain() { if (state.rainDuration <= 0 && state.rainDrops.length === 
 function drawSnow() {
     if (state.snowFlakes.length === 0) return;
     ctx.save();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    let isStorm = state.windDuration > 0;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.lineWidth = 1.5;
+
     state.snowFlakes.forEach(sf => {
-        ctx.beginPath();
-        ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
-        ctx.fill();
+        if (isStorm) {
+            // Fırtınada kar tanesi çizgi halinde tipi gibi uzar
+            ctx.beginPath();
+            ctx.moveTo(sf.x, sf.y);
+            ctx.lineTo(sf.x + 12, sf.y - 6);
+            ctx.stroke();
+        } else {
+            ctx.beginPath();
+            ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
     ctx.restore();
 }
@@ -1861,12 +1997,38 @@ function drawEnvironment() {
   let groundColor = isSnow ? "#d0e8f2" : (isAutumn ? "#3d2b1c" : "#1e3d1c");
   ctx.fillStyle = groundColor; 
   ctx.fillRect(-5, -5, w, h);
+
+// BÖLÜM 3: UZAKTAKİ DAĞ ZİRVELERİ (ARKA PLAN)
+  if (isSnow) {
+      ctx.fillStyle = "#8aa4b8"; // Uzak dağ gölgesi
+      ctx.beginPath();
+      ctx.moveTo(-10, 110);
+      ctx.lineTo(w * 0.2, 30);
+      ctx.lineTo(w * 0.4, 90);
+      ctx.lineTo(w * 0.65, 20);
+      ctx.lineTo(w * 0.85, 80);
+      ctx.lineTo(w + 10, 35);
+      ctx.lineTo(w + 10, 130);
+      ctx.lineTo(-10, 130);
+      ctx.fill();
+
+      // Karlı Dağ Tepeleri
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(w * 0.2 - 25, 60); ctx.lineTo(w * 0.2, 30); ctx.lineTo(w * 0.2 + 25, 60);
+      ctx.moveTo(w * 0.65 - 30, 50); ctx.lineTo(w * 0.65, 20); ctx.lineTo(w * 0.65 + 30, 50);
+      ctx.moveTo(w * 0.85 - 20, 60); ctx.lineTo(w * 0.85, 35); ctx.lineTo(w * 0.85 + 20, 60);
+      ctx.fill();
+  }
   
   ctx.fillStyle = "rgba(0,0,0,0.15)";
   for (let i = 0; i < 80; i++) ctx.fillRect((i * 67) % w, (i * 43) % h, 4, 4);
   
-  ctx.fillStyle = "#3e2723"; ctx.beginPath(); ctx.ellipse(state.fire.x, state.fire.y - 20, 220, 140, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#4a3525"; ctx.beginPath();
+  let innerDirtColor1 = isSnow ? "#a8c8d8" : "#3e2723";
+  let innerDirtColor2 = isSnow ? "#bcd8e8" : "#4a3525";
+
+  ctx.fillStyle = innerDirtColor1; ctx.beginPath(); ctx.ellipse(state.fire.x, state.fire.y - 20, 220, 140, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = innerDirtColor2; ctx.beginPath();
   ctx.ellipse(state.fire.x, state.fire.y - 20, 170, 100, 0, 0, Math.PI * 2); ctx.fill();
   
 state.trees.forEach(tree => { 
@@ -1883,13 +2045,36 @@ state.trees.forEach(tree => {
           ctx.stroke();
       } else {
           ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x + 8, tree.y + 8, tree.r, 0, Math.PI*2); ctx.fill(); 
-          let treeColor = isSnow ? "#2d5a3f" : tree.color;
-          ctx.fillStyle = treeColor; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); 
           
           if(isSnow) {
-              // 3. Bölüm için karlı ağaç tepesi
-              ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(tree.x - tree.r*0.2, tree.y - tree.r*0.2, tree.r * 0.6, 0, Math.PI*2); ctx.fill();
+              // 3. BÖLÜM: Üçgen Katmanlı Karlı Çam Ağacı
+              ctx.fillStyle = "#1b382b"; // Gölge/Koyu Çam Yaprağı
+              let r = tree.r;
+              let x = tree.x;
+              let y = tree.y;
+              
+              // 3 Katman Üçgen
+              for(let k=0; k<3; k++) {
+                  let layerY = y - (k * r * 0.4);
+                  let layerW = r * (1 - k * 0.2);
+                  ctx.beginPath();
+                  ctx.moveTo(x - layerW, layerY + r*0.5);
+                  ctx.lineTo(x, layerY - r*0.6);
+                  ctx.lineTo(x + layerW, layerY + r*0.5);
+                  ctx.fill();
+
+                  // Üçgen Üstü Karlı Şapka
+                  ctx.fillStyle = "#ffffff";
+                  ctx.beginPath();
+                  ctx.moveTo(x - layerW*0.8, layerY + r*0.2);
+                  ctx.lineTo(x, layerY - r*0.6);
+                  ctx.lineTo(x + layerW*0.8, layerY + r*0.2);
+                  ctx.fill();
+                  ctx.fillStyle = "#1b382b";
+              }
           } else {
+              // Diğer Bölümler (Normal Yuvarlak Ağaç)
+              ctx.fillStyle = tree.color; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI*2); ctx.fill(); 
               ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r * 0.5, 0, Math.PI*2); ctx.fill(); 
           }
       }
@@ -1929,22 +2114,46 @@ state.trees.forEach(tree => {
           ctx.restore();
       });
   } else {
-      // Göl Çizimi (Bölüm 1 ve Survival)
+      // Göl Çizimi (Bölüm 1, Bölüm 3 ve Survival)
       ctx.save();
+      
+  // Bölüm 3: Kırmızı çizime uygun, sol altta ufak elips gölet
+      let isSnowPond = state.gameMode === "STORY" && state.currentLevel === 3;
+      if (isSnowPond) {
+          state.pond.x = 40; 
+          state.pond.y = state.fire.y + 120; 
+          state.pond.r = 50; 
+      } else if (!isAutumn) {
+          state.pond.x = 0;
+          state.pond.y = canvas.clientHeight || 600;
+          state.pond.r = (canvas.clientWidth || 800) * 0.35;
+      }
+
       const px = state.pond.x; 
       const py = state.pond.y;
       const baseR = state.pond.r; 
 
+      // Koyu Mavi Taban
       ctx.fillStyle = "rgba(10, 30, 60, 0.9)"; 
       ctx.beginPath();
-      ctx.moveTo(px, py); 
-      ctx.arc(px, py, baseR, 0, Math.PI * 2); 
+      if (isSnowPond) {
+          ctx.ellipse(px, py, baseR * 1.3, baseR * 0.75, 0, 0, Math.PI * 2);
+      } else {
+          ctx.arc(px, py, baseR, 0, Math.PI * 2); 
+      }
       ctx.fill();
+
+      // İç Açık Mavi Katman
       ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
       ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
+      if (isSnowPond) {
+          ctx.ellipse(px, py, baseR * 1.25, baseR * 0.7, 0, 0, Math.PI * 2);
+      } else {
+          ctx.arc(px, py, baseR * 0.98, 0, Math.PI * 2); 
+      }
       ctx.fill();
+
+      // Su Dalgası Efektleri
       const time = performance.now() * 0.001; 
       ctx.globalCompositeOperation = "screen";
       for (let i = 0; i < 3; i++) {
@@ -1953,7 +2162,11 @@ state.trees.forEach(tree => {
           if (r <= 0) continue;
           
           ctx.beginPath();
-          ctx.arc(px, py, r, 0, Math.PI * 2);
+          if (isSnowPond) {
+              ctx.ellipse(px, py, Math.max(5, r * 1.2), Math.max(3, r * 0.7), 0, 0, Math.PI * 2);
+          } else {
+              ctx.arc(px, py, r, 0, Math.PI * 2);
+          }
           ctx.lineWidth = 1.5;
           ctx.strokeStyle = `rgba(150, 220, 255, ${0.15 - i * 0.05})`;
           ctx.stroke();
@@ -2000,63 +2213,105 @@ state.trees.forEach(tree => {
         }
       }
   }
+// === 3. ADIM: ZİRVE UÇURUMU ===
+if (isSnow) {
+      // 1. Yukarıya Genişletilmiş Derin Uçurum Kayalığı
+      ctx.fillStyle = "#1e293b"; // Koyu Uçurum Kayası
+      ctx.beginPath();
+      ctx.moveTo(-10, h - 90);
+      ctx.lineTo(w * 0.2, h - 110);
+      ctx.lineTo(w * 0.45, h - 80);
+      ctx.lineTo(w * 0.75, h - 115);
+      ctx.lineTo(w + 10, h - 85);
+      ctx.lineTo(w + 10, h + 10);
+      ctx.lineTo(-10, h + 10);
+      ctx.fill();
+
+      // 2. Uçurum Kenarı Kar Katmanı
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(-10, h - 90);
+      ctx.lineTo(w * 0.2, h - 110);
+      ctx.lineTo(w * 0.45, h - 80);
+      ctx.lineTo(w * 0.75, h - 115);
+      ctx.lineTo(w + 10, h - 85);
+      ctx.lineTo(w + 10, h - 75);
+      ctx.lineTo(-10, h - 75);
+      ctx.fill();
+
+      // 3. Uçurumun Altında Süzülen Yoğun Bulut Denizi
+      let time = performance.now() * 0.001;
+      
+      // Koyu Arka Bulutlar
+      ctx.fillStyle = "rgba(200, 220, 235, 0.6)";
+      ctx.beginPath();
+      for(let i=-20; i<=w+60; i+=45) {
+          ctx.arc(i + Math.sin(time * 0.8 + i)*12, h - 45 + Math.cos(time*0.4 + i)*6, 35, 0, Math.PI*2);
+      }
+      ctx.fill();
+
+      // Ön Parlak Bulutlar
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.beginPath();
+      for(let i=-10; i<=w+50; i+=40) {
+          ctx.arc(i + Math.cos(time + i)*10, h - 25 + Math.sin(time*0.5 + i)*5, 30, 0, Math.PI*2);
+      }
+      ctx.fill();
+  }
 }
 
 function drawRadioTower() {
     if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
     
-    const tx = state.tent.x;
-    const ty = state.tent.y - 70;
+    // Kuleyi çadırın arkasından çıkarıp sağ tarafa, ateşe yakın konuma alıyoruz
+    const tx = state.fire.x + 110;
+    const ty = state.fire.y - 10;
 
     ctx.save();
     // Metal Kule İskeleti
     ctx.strokeStyle = "#4a5568";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(tx - 25, ty + 20); ctx.lineTo(tx, ty - 90);
-    ctx.moveTo(tx + 25, ty + 20); ctx.lineTo(tx, ty - 90);
-    // Çapraz Demirler
-    ctx.moveTo(tx - 18, ty); ctx.lineTo(tx + 18, ty);
-    ctx.moveTo(tx - 12, ty - 35); ctx.lineTo(tx + 12, ty - 35);
-    ctx.moveTo(tx - 18, ty + 20); ctx.lineTo(tx + 12, ty - 35);
-    ctx.moveTo(tx + 18, ty + 20); ctx.lineTo(tx - 12, ty - 35);
+    ctx.moveTo(tx - 20, ty + 30); ctx.lineTo(tx, ty - 80);
+    ctx.moveTo(tx + 20, ty + 30); ctx.lineTo(tx, ty - 80);
+    ctx.moveTo(tx - 15, ty - 10); ctx.lineTo(tx + 15, ty - 10);
+    ctx.moveTo(tx - 10, ty - 45); ctx.lineTo(tx + 10, ty - 45);
+    ctx.moveTo(tx - 18, ty + 30); ctx.lineTo(tx + 10, ty - 45);
+    ctx.moveTo(tx + 18, ty + 30); ctx.lineTo(tx - 10, ty - 45);
     ctx.stroke();
 
     // Yanıp Sönen Kırmızı Sinyal Işığı
     ctx.fillStyle = (Math.floor(performance.now() / 500) % 2 === 0) ? "#ff0000" : "#500000";
-    ctx.beginPath(); ctx.arc(tx, ty - 92, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx, ty - 82, 5, 0, Math.PI*2); ctx.fill();
 
     // Jeneratör Kutusu
-    const gx = tx + 40;
-    const gy = ty + 10;
+    const gx = tx - 30;
+    const gy = ty + 15;
     ctx.fillStyle = "#2d3748";
-    ctx.fillRect(gx - 15, gy - 15, 30, 25);
+    ctx.fillRect(gx - 14, gy - 12, 28, 22);
     ctx.strokeStyle = "#1a202c";
     ctx.lineWidth = 2;
-    ctx.strokeRect(gx - 15, gy - 15, 30, 25);
+    ctx.strokeRect(gx - 14, gy - 12, 28, 22);
 
-    // Gün Geçtikçe Eriyen Buz Katmanı (7 Günlük erime oranı)
-    let iceProgress = Math.min(1, (state.currentDay - 1) / 6); // 0 (tam buz) ile 1 (tam erimiş) arası
+    // Gün Geçtikçe Eriyen Buz Katmanı
+    let iceProgress = Math.min(1, (state.currentDay - 1) / 6);
     let iceOpacity = 0.85 - (iceProgress * 0.85);
 
     if (iceOpacity > 0.05) {
         ctx.fillStyle = `rgba(180, 225, 255, ${iceOpacity})`;
-        ctx.fillRect(gx - 18, gy - 18, 36, 31);
-        // Sarkıtlar
+        ctx.fillRect(gx - 17, gy - 15, 34, 28);
         ctx.fillStyle = `rgba(220, 245, 255, ${iceOpacity})`;
         ctx.beginPath();
-        ctx.moveTo(gx - 12, gy + 13); ctx.lineTo(gx - 8, gy + 22); ctx.lineTo(gx - 4, gy + 13);
-        ctx.moveTo(gx + 2, gy + 13); ctx.lineTo(gx + 6, gy + 25); ctx.lineTo(gx + 10, gy + 13);
+        ctx.moveTo(gx - 10, gy + 13); ctx.lineTo(gx - 6, gy + 20); ctx.lineTo(gx - 2, gy + 13);
+        ctx.moveTo(gx + 2, gy + 13); ctx.lineTo(gx + 6, gy + 22); ctx.lineTo(gx + 10, gy + 13);
         ctx.fill();
     } else {
-        // Tamamen eridiğinde yeşil çalışma ışığı
         ctx.fillStyle = "#4ade80";
-        ctx.beginPath(); ctx.arc(gx, gy - 5, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(gx, gy - 3, 3.5, 0, Math.PI*2); ctx.fill();
     }
 
     ctx.restore();
 }
-
 function drawTent() {
   const tx = state.tent.x;
   const ty = state.tent.y;
