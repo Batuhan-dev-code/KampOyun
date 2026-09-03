@@ -2,9 +2,8 @@
 // Altın hilesini açmak için aşağıdaki satırın başındaki "//" işaretlerini sil.
 // localStorage.setItem("campfireGoldenWood", 5000);
 
-// Direk 3. Bölümden başlamak için aşağıdaki satırı ekledik:
-localStorage.setItem("campfireCurrentStoryLevel", 4);
-// =======================================================
+// İlerlemeyi sıfırlayıp baştan başlamak istersen alttaki satırın başındaki "//" işaretini kaldırıp 1 kere çalıştırabilirsin.
+// localStorage.setItem("campfireCurrentStoryLevel", 1);
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -29,11 +28,11 @@ const I18N = {
         btnScores: "SCORES",
         btnUpgrades: "🟡 UPGRADES",
         intro1Title: "CHAPTER 1: THE WRECKAGE",
-        intro1Text: "My plane crashed... I'm lucky to be alive, but the radio is shattered. The map shows an old communication tower in the snowy mountains to the North. I must reach it, but first I need to gather my strength. I must survive for at least 3 days, pack my camp, and set off.",
+        intro1Text: "My plane crashed... I'm lucky to be alive, but the radio is shattered. The map shows an old communication tower in the snowy mountains to the North. I must reach it, but first I need to gather my strength. I must survive for at least 2 days, pack my camp, and set off.",
         intro2Title: "CHAPTER 2: THE HOWL",
         intro2Text: "I've passed the forest, but the wind at the rocky foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
 	intro3Title: "CHAPTER 3: FROZEN PEAK",
-        intro3Text: "We've reached the peak. The radio tower is right ahead, but everything is frozen solid. I must keep a massive fire going for 7 days until the generator thaws, and fight against the freezing cold.",
+        intro3Text: "We've reached the peak. The radio tower is right ahead, but everything is frozen solid. I must keep a massive fire going for 5 days until the generator thaws, and fight against the freezing cold.",
 	intro4Title: "CHAPTER 4: THE LAST STAND",
         intro4Text: "The rescue helicopter will be here in 2 days. However, the loud hum of the radio tower has drawn all the horrors of the forest right to us. The sky is blood red. These 2 days will be hell...",
         clickToContinue: "- CLICK TO CONTINUE -",
@@ -101,11 +100,11 @@ const I18N = {
         btnScores: "SKORLAR",
         btnUpgrades: "🟡 YETENEKLER",
         intro1Title: "BÖLÜM 1: ENKAZ",
-        intro1Text: "Uçağım düştü... Şanslıyım ki hayattayım ama telsiz parçalandı. Haritaya göre Kuzeydeki karlı dağlarda eski bir iletişim kulesi var. Oraya ulaşmalıyım ama önce toparlanmam lazım. En az 3 gün hayatta kalıp, kampı toplayarak yola çıkmalıyım.",
+        intro1Text: "Uçağım düştü... Şanslıyım ki hayattayım ama telsiz parçalandı. Haritaya göre Kuzeydeki karlı dağlarda eski bir iletişim kulesi var. Oraya ulaşmalıyım ama önce toparlanmam lazım. En az 2 gün hayatta kalıp, kampı toplayarak yola çıkmalıyım.",
         intro2Title: "BÖLÜM 2: ULUMA",
         intro2Text: "Ormanı aştım ama kayalık tepelerde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
 	intro3Title: "BÖLÜM 3: DONDURUCU ZİRVE",
-        intro3Text: "Zirveye ulaştık. Radyo kulesi tam karşımda ama her yer buz tutmuş durumda. Jeneratörün buzu çözülene kadar 7 gün boyunca ateşi korumalı ve dondurucu soğukla savaşmalıyım.",
+        intro3Text: "Zirveye ulaştık. Radyo kulesi tam karşımda ama her yer buz tutmuş durumda. Jeneratörün buzu çözülene kadar 5 gün boyunca ateşi korumalı ve dondurucu soğukla savaşmalıyım.",
 	intro4Title: "BÖLÜM 4: SON DİRENİŞ",
         intro4Text: "Kurtarma helikopteri 2 gün içinde burada olacak. Ancak radyo kulesinin çıkardığı yüksek ses, ormandaki tüm dehşeti buraya çekti. Gökyüzü kan kırmızısı. Önümüzdeki 2 gün tam bir cehennem olacak...",
         clickToContinue: "- DEVAM ETMEK İÇİN TIKLA -",
@@ -382,7 +381,7 @@ window.packCampAndLeave = function(event) {
     
     if (state.gameMode === "STORY") {
         if (state.currentLevel === 1) {
-            if (state.currentDay < 3) {
+            if (state.currentDay < 2) {
                 state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
                 return;
             }
@@ -391,12 +390,12 @@ window.packCampAndLeave = function(event) {
                 state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("mustRescueDog"), life: 2.0, color: "#ff4a4a" });
                 return;
             }
-            if (state.currentDay < 5) {
+            if (state.currentDay < 4) {
                 state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
                 return;
             }
         } else if (state.currentLevel === 3) {
-            if (state.currentDay < 7) {
+            if (state.currentDay < 5) {
                 state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
                 return;
             }
@@ -621,7 +620,7 @@ fireSprite.onload = () => { const fullW = fireSprite.width || 0; const fullH = f
 const controls = { up: false, down: false, left: false, right: false };
 const anim = { walkFrame: 0, walkTimer: 0, deathFrame: 0, deathTimer: 0 };
 const deathClip = { row: 0, startCol: 0, frameCount: 1 };
-const DAY_SECONDS = 120; const NIGHT_SECONDS = 60;
+const DAY_SECONDS = 90; const NIGHT_SECONDS = 45;
 const CYCLE_SECONDS = DAY_SECONDS + NIGHT_SECONDS;
 const WALK_FPS = 10; const DEATH_FPS = 8; const FIRE_FPS_MIN = 10;
 const FIRE_FPS_MAX = 12; const PLAYER_SCALE = 2.2; const WALK_START_COL = 0; const WALK_MAX_FRAMES = 4;
