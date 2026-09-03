@@ -3,7 +3,7 @@
 // localStorage.setItem("campfireGoldenWood", 5000);
 
 // Direk 3. Bölümden başlamak için aşağıdaki satırı ekledik:
-localStorage.setItem("campfireCurrentStoryLevel", 3);
+localStorage.setItem("campfireCurrentStoryLevel", 4);
 // =======================================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -34,6 +34,8 @@ const I18N = {
         intro2Text: "I've passed the forest, but the wind at the rocky foothills is relentless. My fire keeps dying. Last night, I heard a familiar bark through the storm... Could my dog have survived the crash? I must find him!",
 	intro3Title: "CHAPTER 3: FROZEN PEAK",
         intro3Text: "We've reached the peak. The radio tower is right ahead, but everything is frozen solid. I must keep a massive fire going for 7 days until the generator thaws, and fight against the freezing cold.",
+	intro4Title: "CHAPTER 4: THE LAST STAND",
+        intro4Text: "The rescue helicopter will be here in 2 days. However, the loud hum of the radio tower has drawn all the horrors of the forest right to us. The sky is blood red. These 2 days will be hell...",
         clickToContinue: "- CLICK TO CONTINUE -",
         tooDangerous: "TOO DANGEROUS NOW!",
         notReady: "NOT READY TO TRAVEL YET!",
@@ -55,6 +57,7 @@ const I18N = {
         lvl1Complete: "CHAPTER 1 COMPLETED!",
         lvl2Complete: "CHAPTER 2 COMPLETED!",
 	lvl3Complete: "CHAPTER 3 COMPLETED!",
+	lvl4Complete: "STORY MODE COMPLETED!",
         day: "Day",
         score: "Score",
         empty: "Empty",
@@ -81,7 +84,14 @@ const I18N = {
         needMaterials: "NEED 5🪵 + 1🍎",
         trapSet: "TRAP SET!",
         stolen: "STOLEN!",
-        goldenWood: "GOLDEN WOOD!"
+        goldenWood: "GOLDEN WOOD!",
+	freezing: "FREEZING!",
+	iceStone: "ICE SHARD",
+        craftIcePick: "ICE PICK (2🪵 1🧊)",
+        lakeFrozen: "LAKE FROZEN! (NEED ⛏️)",
+        icePickCrafted: "ICE PICK CRAFTED!",
+        needPickMaterials: "NEED 2🪵 + 1🧊",
+        iceBroken: "ICE BROKEN!"
     },
     tr: {
         btnStory: "📖 HİKAYE MODU",
@@ -96,6 +106,8 @@ const I18N = {
         intro2Text: "Ormanı aştım ama kayalık tepelerde rüzgar acımasız. Ateşim sürekli sönüyor. Dün gece fırtınanın içinden tanıdık bir havlama sesi duydum... Olamaz, köpeğim yaşıyor olabilir mi? Onu bulmalıyım!",
 	intro3Title: "BÖLÜM 3: DONDURUCU ZİRVE",
         intro3Text: "Zirveye ulaştık. Radyo kulesi tam karşımda ama her yer buz tutmuş durumda. Jeneratörün buzu çözülene kadar 7 gün boyunca ateşi korumalı ve dondurucu soğukla savaşmalıyım.",
+	intro4Title: "BÖLÜM 4: SON DİRENİŞ",
+        intro4Text: "Kurtarma helikopteri 2 gün içinde burada olacak. Ancak radyo kulesinin çıkardığı yüksek ses, ormandaki tüm dehşeti buraya çekti. Gökyüzü kan kırmızısı. Önümüzdeki 2 gün tam bir cehennem olacak...",
         clickToContinue: "- DEVAM ETMEK İÇİN TIKLA -",
         tooDangerous: "ŞU AN ÇOK TEHLİKELİ!",
         notReady: "HENÜZ YOLA ÇIKMAYA HAZIR DEĞİLSİN!",
@@ -117,6 +129,7 @@ const I18N = {
         lvl1Complete: "1. BÖLÜM TAMAMLANDI!",
         lvl2Complete: "2. BÖLÜM TAMAMLANDI!",
 	lvl3Complete: "3. BÖLÜM TAMAMLANDI!",
+	lvl4Complete: "HİKAYE MODU TAMAMLANDI!",
         day: "Gün",
         score: "Skor",
         empty: "Boş",
@@ -143,7 +156,14 @@ const I18N = {
         needMaterials: "5🪵 + 1🍎 GEREKLİ!",
         trapSet: "TUZAK KURULDU!",
         stolen: "ÇALINDI!",
-        goldenWood: "ALTIN ODUN!"
+        goldenWood: "ALTIN ODUN!",
+	freezing: "DONUYORUM!",
+	iceStone: "BUZ TAŞI",
+        craftIcePick: "KAZMA ÜRET (2🪵 1🧊)",
+        lakeFrozen: "GÖL DONMUŞ! (⛏️ LAZIM)",
+        icePickCrafted: "KAZMA ÜRETİLDİ!",
+        needPickMaterials: "2🪵 + 1🧊 GEREKLİ!",
+        iceBroken: "BUZ KIRILDI!"
     }
 };
 
@@ -153,6 +173,29 @@ function t(key) {
 
 const tentStyle = document.createElement('style');
 tentStyle.innerHTML = `
+  /* --- OYUN EKRANINI 9:16 (MOBİL DİKEY) ORANINA KİLİTLEME VE SİYAH BANT (LETTERBOX) --- */
+  html, body {
+      background-color: #050505 !important; /* Arka planda kalacak siyah bant rengi */
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      height: 100vh !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+  }
+  .game-shell {
+      position: relative !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      /* Ekran genişse genişliği kısıtlar, yüksekse yüksekliği kısıtlar. Kusursuz 9:16 oranı. */
+      max-width: calc(100vh * 9 / 16) !important;
+      max-height: calc(100vw * 16 / 9) !important;
+      box-shadow: 0 0 35px rgba(0, 0, 0, 1) !important; /* Ortadaki oyun alanını gölgelendirerek ayırır */
+      background-color: #1a1a1a !important;
+      overflow: hidden !important;
+  }
+  /* ---------------------------------------------------------------------------------- */
+
   #tentMenu { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #a0522d; border-radius: 12px; padding: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; pointer-events: auto; z-index: 100; transition: opacity 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.6); max-width: 85%; width: max-content; }
   .tent-item { color: white; font-size: 14px; font-weight: bold; cursor: pointer; text-align: center; padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: all 0.1s; user-select: none; }
   .tent-item:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
@@ -273,14 +316,15 @@ const state = {
   
   traps: [],
   maxCarry: 3, 
-  carried: { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 },
-  tentStorage: { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, meat: 0, cooked_meat: 0 },
+  carried: { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0, ice_stone: 0, ice_pick: 0 },
+  tentStorage: { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, meat: 0, cooked_meat: 0, ice_stone: 0 },
+  iceStones: [], pendingIceStoneRespawns: 0, iceStoneRespawnTimer: 0, targetIceStoneCount: 3,
   
   sessionGoldenWood: 0, 
   
   isMuted: localStorage.getItem("campfireMuted") === "true",
   bloodMoonActive: false, bloodMoonHowlTimer: 0, bloodMoonMessageTimer: 0, survivedBloodMoonMessageTimer: 0, fireEaterSpawnTimer: 0,
-  score: 0, health: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
+  score: 0, health: 100, coldLevel: 100, dayNightTimer: 0, lastTs: 0, gameOver: false, deathAnimDone: false, damageFlash: 0, currentDay: 1, dayMessageTimer: 0,
   
   equippedFood: null,
   equippedCount: 0,
@@ -351,6 +395,17 @@ window.packCampAndLeave = function(event) {
                 state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
                 return;
             }
+        } else if (state.currentLevel === 3) {
+            if (state.currentDay < 7) {
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
+                return;
+            }
+        } else if (state.currentLevel === 4) {
+            // Helikopter inmeden (Yani 3. Güne girilmeden) oyuncu kaçamaz
+            if (state.currentDay < 3 || !state.helicopter || !state.helicopter.landed) {
+                state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("notReady"), life: 2.0, color: "#ff4a4a" });
+                return;
+            }
         }
     }
     
@@ -371,7 +426,6 @@ window.packCampAndLeave = function(event) {
     
     if (state.gameMode === "STORY") {
         if (state.currentLevel === 1) {
-            localStorage.setItem("campfireSurvivalUnlocked", "true");
             localStorage.setItem("campfireCurrentStoryLevel", 2);
             titleText = t("lvl1Complete");
             titleColor = "#ffd700";
@@ -379,6 +433,14 @@ window.packCampAndLeave = function(event) {
             localStorage.setItem("campfireCurrentStoryLevel", 3);
             titleText = t("lvl2Complete");
             titleColor = "#ffd700";
+        } else if (state.currentLevel === 3) {
+            localStorage.setItem("campfireCurrentStoryLevel", 4);
+            titleText = t("lvl3Complete");
+            titleColor = "#ffd700";
+        } else if (state.currentLevel === 4) {
+            localStorage.setItem("campfireSurvivalUnlocked", "true"); // Oyunu bitirince Sonsuz Mod açılır
+            titleText = t("lvl4Complete");
+            titleColor = "#ff2a2a";
         }
     }
     
@@ -445,6 +507,7 @@ style.innerHTML = `
   .bar-fill { height: 100%; transition: width 0.2s ease-out; }
   .health-fill { background: linear-gradient(90deg, #c53030, #fc8181); }
   .fire-fill { background: linear-gradient(90deg, #ff4500, #ff8c00); }
+  .cold-fill { background: linear-gradient(90deg, #0077b6, #00b4d8); }
   .bag-container { display: flex; flex-direction: column; justify-content: center; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 6px; border: 1px solid #4a5568; min-width: 150px; }
   .time-container { position: relative; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; }
   .time-icon { position: absolute; width: 24px; height: 24px; transition: opacity 0.5s; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)); }
@@ -494,6 +557,8 @@ function renderBagIcons() {
         <div style="display:flex; justify-content:center; gap:6px; font-size:12px; margin-top:2px;">
     `;
     if(state.carried.wood > 0) html += `<span>🪵${state.carried.wood}</span>`;
+if(state.carried.ice_stone > 0) html += `<span>🧊${state.carried.ice_stone}</span>`;
+    if(state.carried.ice_pick > 0) html += `<span>⛏️${state.carried.ice_pick}</span>`;
     if(state.carried.apple > 0) html += `<span>🍎${state.carried.apple}</span>`;
     if(state.carried.mushroom > 0) html += `<span>🍄${state.carried.mushroom}</span>`;
     if(state.carried.fish > 0) html += `<span>🐟${state.carried.fish}</span>`;
@@ -531,7 +596,15 @@ const barsGroup = document.createElement("div"); barsGroup.className = "bars-gro
 const fireWrap = document.createElement("div"); fireWrap.className = "bar-wrapper";
 fireWrap.innerHTML = '🔥 <div class="bar-container"><div id="fireBar" class="bar-fill fire-fill"></div></div>'; barsGroup.appendChild(fireWrap);
 const healthWrap = document.createElement("div"); healthWrap.className = "bar-wrapper";
-healthWrap.innerHTML = '❤️ <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; barsGroup.appendChild(healthWrap);bottomRow.appendChild(barsGroup);
+healthWrap.innerHTML = '❤️ <div class="bar-container"><div id="healthBar" class="bar-fill health-fill"></div></div>'; 
+barsGroup.appendChild(healthWrap);
+
+// Soğuk (Donma) Barı (Sadece 3. Bölümde aktif olacak)
+const coldWrap = document.createElement("div"); coldWrap.className = "bar-wrapper"; coldWrap.id = "coldWrapDiv";
+coldWrap.innerHTML = '🥶 <div class="bar-container"><div id="coldBar" class="bar-fill cold-fill"></div></div>'; 
+barsGroup.appendChild(coldWrap);
+
+bottomRow.appendChild(barsGroup);
 const scoreWrap = document.createElement("div"); scoreWrap.className = "score-text";
 scoreWrap.innerHTML = `<span id="dayTextContainer"></span> | <span id="scoreTextContainer"></span> | <span style="color:#ffd700;">🟡 <span id="goldenWoodText">0</span></span>`; bottomRow.appendChild(scoreWrap);
 hudEl.appendChild(topRow); hudEl.appendChild(bottomRow);
@@ -570,7 +643,7 @@ if (!candidates.length) return null; candidates.sort((a, b) => a.score - b.score
 
 function isPointInPond(px, py) {
     let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
-    let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
     
     if (isAutumn) {
         const h = canvas.clientHeight || 600;
@@ -605,7 +678,7 @@ function generateEnvironment() {
         }
     }
     
-let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
     let treeCount = isSnow ? 25 : 70;
     
     for (let i = 0; i < treeCount; i++) { 
@@ -632,7 +705,7 @@ function resizeCanvas() {
   state.fire.y = rect.height * 0.5 + 40; state.tent.x = state.fire.x; state.tent.y = state.fire.y - 85;
   
  // Göl pozisyonu güncellemesi
-  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
   if (isSnow) {
       state.pond.x = 40;
       state.pond.y = state.fire.y + 120;
@@ -653,7 +726,7 @@ function randomWood() {
     const w = canvas.clientWidth || 800; 
     const h = canvas.clientHeight || 600;
     const isGold = Math.random() < 0.15; 
-    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
     const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
 
     for (let i = 0; i < 20; i += 1) { 
@@ -676,7 +749,7 @@ function randomWood() {
 function randomMushroom() { 
     const w = canvas.clientWidth || 800; 
     const h = canvas.clientHeight || 600;
-    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
     const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
 
     for (let i = 0; i < 20; i += 1) { 
@@ -698,7 +771,7 @@ function randomMushroom() {
 function randomApple() { 
     const w = canvas.clientWidth || 800; 
     const h = canvas.clientHeight || 600;
-    const isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+    const isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
     const towerPos = { x: state.fire.x + 110, y: state.fire.y - 10 };
 
     for (let i = 0; i < 20; i += 1) { 
@@ -720,7 +793,9 @@ function randomApple() {
 function seedWoods() { state.woods = []; state.pendingWoodRespawns = 0; state.woodRespawnTimer = 0;
 for (let i = 0; i < state.targetWoodCount; i += 1) state.woods.push(randomWood()); state.mushrooms = []; state.pendingMushroomRespawns = 0;
 state.mushroomRespawnTimer = 0; for (let i = 0; i < state.targetMushroomCount; i += 1) state.mushrooms.push(randomMushroom()); state.apples = [];
-for (let i = 0; i < 3; i += 1) state.apples.push(randomApple());}
+for (let i = 0; i < 3; i += 1) state.apples.push(randomApple());
+state.iceStones = []; for (let i = 0; i < state.targetIceStoneCount; i += 1) state.iceStones.push(randomApple());
+}
 
 function isNight() { return (state.dayNightTimer % CYCLE_SECONDS) >= DAY_SECONDS;
 }
@@ -730,15 +805,32 @@ function updateHud() {
   const hBar = document.getElementById("healthBar");
   if (hBar) hBar.style.width = Math.max(0, state.health) + "%";
   
+const cBar = document.getElementById("coldBar");
+  if (cBar) cBar.style.width = Math.max(0, state.coldLevel) + "%";
+  
+  const cwDiv = document.getElementById("coldWrapDiv");
+  if (cwDiv) {
+      // Donma barı sadece Hikaye Modu 3. Bölümdeyken ekranda görünür
+      if (state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4)) {
+          cwDiv.style.display = "flex";
+      } else {
+          cwDiv.style.display = "none";
+      }
+  }
+
   const bWrap = document.getElementById("bagWrapper");
   if (bWrap) { bWrap.innerHTML = renderBagIcons(); }
 
-  const sIcon = document.querySelector(".sun-icon");
+const sIcon = document.querySelector(".sun-icon");
   const mIcon = document.querySelector(".moon-icon:not(.blood-moon-icon)"); const bmIcon = document.querySelector(".blood-moon-icon");
   if (sIcon && mIcon && bmIcon) { 
-      if (isNight()) { sIcon.style.opacity = 0;
-      if (state.currentDay % 4 === 0) { mIcon.style.opacity = 0; bmIcon.style.opacity = 1; } else { mIcon.style.opacity = 1;
-      bmIcon.style.opacity = 0; } } else { sIcon.style.opacity = 1; mIcon.style.opacity = 0; bmIcon.style.opacity = 0;
+      let isChapter4 = state.gameMode === "STORY" && state.currentLevel === 4;
+      if (isNight() && (state.currentDay % 4 === 0 || isChapter4)) {
+          sIcon.style.opacity = 0; mIcon.style.opacity = 0; bmIcon.style.opacity = 1;
+      } else if (isNight()) { 
+          sIcon.style.opacity = 0; mIcon.style.opacity = 1; bmIcon.style.opacity = 0; 
+      } else { 
+          sIcon.style.opacity = 1; mIcon.style.opacity = 0; bmIcon.style.opacity = 0;
       } 
   }
   
@@ -764,9 +856,11 @@ function updateHud() {
             : "";
 
 const newTentHTML = depositBtn + `
-              <div class="tent-item" style="background: rgba(139, 69, 19, 0.6); border: 1px solid #d2691e; width: 100%; margin-bottom: 5px;" onpointerdown="window.craftTrap(event)">🪤 ${t("trapCraft")}</div>
+              <div class="tent-item" style="background: rgba(139, 69, 19, 0.6); border: 1px solid #d2691e; width: 100%; margin-bottom: 2px;" onpointerdown="window.craftTrap(event)">🪤 ${t("trapCraft")}</div>
+              ${(state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4)) ? `<div class="tent-item" style="background: rgba(100, 149, 237, 0.6); border: 1px solid #4682b4; width: 100%; margin-bottom: 5px;" onpointerdown="window.craftIcePick(event)">⛏️ ${t("craftIcePick")}</div>` : ""}
               <div style="width: 100%; text-align: center; color: #ccc; font-size: 11px; margin-bottom: 4px;">-- DEPO --</div>
               <div class="tent-item" style="border: 1px dashed #aaa; pointer-events: none; opacity: 0.8;">🪵 ${state.tentStorage.wood}</div>
+              ${(state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4)) ? `<div class="tent-item" style="border: 1px dashed #aaa; pointer-events: none; opacity: 0.8;">🧊 ${state.tentStorage.ice_stone}</div>` : ""}
               <div class="tent-item" onpointerdown="equipFood('apple', event)">🍎 ${state.tentStorage.apple}</div>
               <div class="tent-item" onpointerdown="equipFood('mushroom', event)">🍄 ${state.tentStorage.mushroom}</div>
               <div class="tent-item" onpointerdown="equipFood('fish', event)">🐟 ${state.tentStorage.fish}</div>
@@ -775,8 +869,10 @@ const newTentHTML = depositBtn + `
               ${state.tentStorage.cooked_blue_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_blue_fish', event)">💎🍣 ${state.tentStorage.cooked_blue_fish}</div>` : ""}
               ${state.tentStorage.cooked_mushroom > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_mushroom', event)">🥘 ${state.tentStorage.cooked_mushroom}</div>` : ""}
               ${state.tentStorage.cooked_fish > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_fish', event)">🍣 ${state.tentStorage.cooked_fish}</div>` : ""}
-              ${state.tentStorage.cooked_meat > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_meat', event)">🍖 ${state.tentStorage.cooked_meat}</div>` : ""}
-              <div class="tent-item" style="background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; margin-top: 5px; width: 100%;" onpointerdown="packCampAndLeave(event)">${t("packCamp")}</div>
+${state.tentStorage.cooked_meat > 0 ? `<div class="tent-item" onpointerdown="equipFood('cooked_meat', event)">🍖 ${state.tentStorage.cooked_meat}</div>` : ""}
+              <div class="tent-item" style="background: ${(state.helicopter && state.helicopter.landed) ? 'rgba(255, 42, 42, 0.4)' : 'rgba(46, 204, 113, 0.2)'}; border: 2px solid ${(state.helicopter && state.helicopter.landed) ? '#ff2a2a' : '#2ecc71'}; margin-top: 5px; width: 100%; font-weight: 900;" onpointerdown="packCampAndLeave(event)">
+                  ${(state.helicopter && state.helicopter.landed) ? (currentLang === "tr" ? "🚁 BİN VE KAÇ!" : "🚁 GET IN CHOPPER") : t("packCamp")}
+              </div>
           `;
           if (tMenu.innerHTML !== newTentHTML) {
               tMenu.innerHTML = newTentHTML;
@@ -855,6 +951,45 @@ window.craftTrap = function(event) {
     }
 };
 
+window.craftIcePick = function(event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    
+    let tWood = Number(state.tentStorage.wood) || 0;
+    let cWood = Number(state.carried.wood) || 0;
+    let tIce = Number(state.tentStorage.ice_stone) || 0;
+    let cIce = Number(state.carried.ice_stone) || 0;
+    
+    let totalWood = tWood + cWood;
+    let totalIce = tIce + cIce;
+
+    if(totalWood >= 2 && totalIce >= 1) {
+        let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
+        
+        let carriedWoodUsed = Math.min(cWood, 2);
+        let carriedIceUsed = Math.min(cIce, 1);
+        
+        let simulatedCarry = currentCarry - carriedWoodUsed - carriedIceUsed + 1;
+
+        if (simulatedCarry > state.maxCarry) {
+            state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("bagFull"), life: 1.5, color: "#ff4a4a" });
+            return;
+        }
+
+        state.carried.wood -= carriedWoodUsed;
+        state.tentStorage.wood -= (2 - carriedWoodUsed);
+
+        state.carried.ice_stone -= carriedIceUsed;
+        state.tentStorage.ice_stone -= (1 - carriedIceUsed);
+
+        state.carried.ice_pick = (Number(state.carried.ice_pick) || 0) + 1;
+        
+        playSound(sounds.wood);
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("icePickCrafted"), life: 1.5, color: "#00ffff" });
+        updateHud();
+    } else {
+        state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: t("needPickMaterials"), life: 1.5, color: "#ff4a4a" });
+    }
+};
 function placeTrap(x, y) {
     if(state.carried.trap_kit > 0) {
         state.carried.trap_kit--;
@@ -982,6 +1117,20 @@ function collectItems() {
               currentCarry++;
               playSound(sounds.wood); 
               state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🍎", life: 1.5, color: "#ff3333" }); 
+              return false; 
+          }
+      } 
+      return true; 
+  });
+
+state.iceStones = state.iceStones.filter((ice) => { 
+      if (dist(state.player, ice) <= state.player.r + ice.r) { 
+          if (currentCarry < state.maxCarry) {
+              state.carried.ice_stone = (Number(state.carried.ice_stone) || 0) + 1; 
+              currentCarry++;
+              playSound(sounds.wood); 
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 20, text: "+1 🧊", life: 1.5, color: "#00ffff" }); 
+              state.pendingIceStoneRespawns++;
               return false; 
           }
       } 
@@ -1238,7 +1387,7 @@ function updateRespawns(dt) {
 
 function updateRain(dt) {
 // Bölüm 3'te yağmur yağmasın
-  if (state.gameMode === "STORY" && state.currentLevel === 3) {
+  if (state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4)) {
       state.rainDuration = 0;
       state.rainDrops = [];
       return;
@@ -1254,7 +1403,7 @@ if (state.windDuration > 0) return;
 }
 
 function updateSnow(dt) {
-    if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
+    if (state.gameMode !== "STORY" || (state.currentLevel !== 3 && state.currentLevel !== 4)) return;
     
     let isStorm = state.windDuration > 0;
     let spawnRate = isStorm ? 100 : 30; // Fırtınada kar sayısı artar
@@ -1323,9 +1472,36 @@ function update(dt) {
       state.currentDay = calcDay;
       state.dayMessageTimer = 3.0;
       state.pond.fishCaughtToday = false;
+      state.pond.isFrozen = (state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4));
+      
+      // BÖLÜM 4: 2 Gece hayatta kalındığında (3. Güne girildiğinde) Helikopter gelir
+      if (state.gameMode === "STORY" && state.currentLevel === 4 && state.currentDay >= 3) {
+          if (!state.helicopter) state.helicopter = { active: false, yOffset: -500, spotlightSize: 0, propellerAngle: 0, landed: false };
+          if (!state.helicopter.active) {
+              state.helicopter.active = true;
+              playSound(sounds.wind); // Helikopter pervane sesi niyetine rüzgar
+              let msg = currentLang === "tr" ? "HELİKOPTER GELDİ!" : "CHOPPER ARRIVED!";
+              state.floatingTexts.push({ x: state.player.x, y: state.player.y - 50, text: msg, life: 4.0, color: "#4ade80" });
+          }
+      }
   }
 
-  if (isNight() && state.currentDay % 4 === 0) {
+  // Helikopter İniş Animasyonu
+  if (state.helicopter && state.helicopter.active) {
+      state.helicopter.propellerAngle += dt * 25; // Hızlı dönen pervaneler
+      if (state.helicopter.yOffset < 0) {
+          state.helicopter.yOffset += dt * 100; // Ekrandan aşağı doğru iner
+          state.helicopter.spotlightSize = Math.min(100, state.helicopter.spotlightSize + dt * 25);
+      } else {
+          state.helicopter.landed = true;
+          // İndikten sonra spot ışığı hafifçe yanıp sönmeye (pulse) devam eder
+          state.helicopter.spotlightSize = 100 + Math.sin(performance.now() * 0.005) * 5; 
+      }
+  }
+
+let isChapter4 = state.gameMode === "STORY" && state.currentLevel === 4;
+  
+  if (isNight() && (state.currentDay % 4 === 0 || isChapter4)) {
       if (!state.bloodMoonActive) {
           state.bloodMoonActive = true;
           state.bloodMoonMessageTimer = 3.0;
@@ -1451,27 +1627,48 @@ function update(dt) {
       let reqFishTime = currentFishingTier >= 1 ? 2.0 : 4.0; 
       let currentCarry = Object.values(state.carried).reduce((a,b)=>a+b, 0);
 
-      if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && !state.pond.fishCaughtToday && currentCarry < state.maxCarry) {
-          state.pond.fishProgress += dt;
-          if (state.pond.fishProgress >= reqFishTime) {
-              state.pond.fishProgress = 0;
-              state.pond.fishCaughtToday = true;
-              
-              if (currentFishingTier >= 2 && Math.random() < 0.20) {
-                  state.sessionGoldenWood += 10;
-                  let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
-                  localStorage.setItem("campfireGoldenWood", currentBank + 10);
-                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("treasure"), life: 2.0, color: "#ffd700" });
+if (dPond <= state.pond.r + state.player.r + 15 && !isMoving && currentCarry < state.maxCarry) {
+          if (state.pond.isFrozen) {
+              if (state.carried.ice_pick > 0) {
+                  // Buzu Kır
+                  state.carried.ice_pick--;
+                  state.pond.isFrozen = false;
                   playSound(sounds.wood);
+                  state.floatingTexts.push({ x: state.pond.x, y: state.pond.y, text: t("iceBroken"), life: 1.5, color: "#00ffff" });
+                  updateHud();
               } else {
-                  if (currentFishingTier >= 3) {
-                      state.carried.blue_fish++;
-                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
-                  } else {
-                      state.carried.fish++;
-                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                  // Kazma Yok Uyarısı (Her 2 saniyede bir verir)
+                  if (!state.pond.iceWarningTimer) state.pond.iceWarningTimer = 0;
+                  state.pond.iceWarningTimer -= dt;
+                  if (state.pond.iceWarningTimer <= 0) {
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 40, text: t("lakeFrozen"), life: 1.5, color: "#00ffff" });
+                      state.pond.iceWarningTimer = 2.0;
                   }
               }
+          } else if (!state.pond.fishCaughtToday) {
+              state.pond.fishProgress += dt;
+              if (state.pond.fishProgress >= reqFishTime) {
+                  state.pond.fishProgress = 0;
+                  state.pond.fishCaughtToday = true;
+                  
+                  if (currentFishingTier >= 2 && Math.random() < 0.20) {
+                      state.sessionGoldenWood += 10;
+                      let currentBank = parseInt(localStorage.getItem("campfireGoldenWood") || "0");
+                      localStorage.setItem("campfireGoldenWood", currentBank + 10);
+                      state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("treasure"), life: 2.0, color: "#ffd700" });
+                      playSound(sounds.wood);
+                  } else {
+                      if (currentFishingTier >= 3) {
+                          state.carried.blue_fish++;
+                          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 💎🐟", life: 1.5, color: "#00ffff" });
+                      } else {
+                          state.carried.fish++;
+                          state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: "+1 🐟", life: 1.5, color: "#4ea9ff" });
+                      }
+                  }
+              }
+          } else {
+              state.pond.fishProgress = 0;
           }
       } else { 
           state.pond.fishProgress = 0;
@@ -1502,7 +1699,7 @@ if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fi
   }
 
   // Kule ve Jeneratör Çarpışma Kontrolü (Bölüm 3)
-  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
   if (isSnow) {
       const tx = state.fire.x + 110;
       const ty = state.fire.y - 10;
@@ -1575,6 +1772,33 @@ if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fi
   state.health -= dt * 0.3;
   if (isMoving) state.health -= dt * 1.2; 
   if (isNight() && state.fire.level <= 0) state.health -= dt * 14;
+// BÖLÜM 3: SOĞUK / DONMA MEKANİĞİ
+  if (isSnow) {
+      // Isınma alanı artık sadece ateşin çok yakın çevresi (dibi)
+      let warmRadius = state.fire.r + 65; 
+      
+      if (dFire < warmRadius && state.fire.level > 0) {
+          // Ateşin dibindeyken oyuncu hızla ısınır
+          state.coldLevel = Math.min(100, state.coldLevel + dt * 35);
+      } else {
+          // Ateşten uzakken oyuncu donmaya başlar (Düşüş hızları artırıldı)
+          let coldDrainRate = isNight() ? 12 : 6;
+          if (state.windDuration > 0) coldDrainRate *= 1.5; 
+          
+          state.coldLevel -= dt * coldDrainRate;
+          
+          // Donma Barı sıfırlanırsa oyuncunun canı (HP) erir
+          if (state.coldLevel <= 0) {
+              state.coldLevel = 0;
+              state.health -= dt * 15; // Can kaybı da hızlandırıldı
+              state.damageFlash = Math.max(state.damageFlash, 0.2); 
+              
+              if (Math.random() < dt * 1.5) {
+                  state.floatingTexts.push({ x: state.player.x, y: state.player.y - 30, text: t("freezing"), life: 1.0, color: "#00b4d8" });
+              }
+          }
+      }
+  }
   if (isNight()) {
       let bmMultiplier = state.bloodMoonActive ? 2 : 1;
       const maxEnemies = (3 + Math.floor(state.score / 50)) * bmMultiplier;
@@ -1783,10 +2007,11 @@ if (nearFire && (state.equippedFood === "mushroom" || state.equippedFood === "fi
       if (!sounds.fire.paused) sounds.fire.pause();
     }
 
-    if (isNight()) {
+  if (isNight()) {
       if (state.bloodMoonActive) {
           if (sounds.bloodmoon.paused) sounds.bloodmoon.play().catch(()=>{});
           if (!sounds.night.paused) sounds.night.pause();
+          if (!sounds.day.paused) sounds.day.pause();
           sounds.bloodmoon.volume = 0.6;
       } else {
           if (sounds.night.paused) sounds.night.play().catch(()=>{});
@@ -1851,6 +2076,20 @@ function drawApple(x, y) {
   ctx.restore();
 }
 
+function drawIceStone(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "rgba(180, 230, 255, 0.9)";
+  ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, -6); ctx.lineTo(5, -2); ctx.lineTo(3, 5);
+  ctx.lineTo(-3, 6); ctx.lineTo(-6, 0); ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(2, -2); ctx.lineTo(0, 4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 function drawCampfireBase() { 
   const fx = state.fire.x; const fy = state.fire.y + 15;
   ctx.fillStyle = "rgba(20, 10, 10, 0.7)"; 
@@ -1902,7 +2141,7 @@ function drawWind() {
   if (state.windParticles.length === 0) return; 
   ctx.save(); 
   
-  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
   ctx.strokeStyle = isSnow ? "rgba(255, 255, 255, 0.7)" : "rgba(200, 220, 255, 0.4)"; 
   ctx.lineWidth = isSnow ? 3 : 2; 
   ctx.beginPath();
@@ -1992,7 +2231,7 @@ function drawEnvironment() {
   const w = (canvas.clientWidth || 800) + 10; const h = (canvas.clientHeight || 600) + 10;
   
   let isAutumn = state.gameMode === "STORY" && state.currentLevel === 2;
-  let isSnow = state.gameMode === "STORY" && state.currentLevel === 3;
+  let isSnow = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
   
   let groundColor = isSnow ? "#d0e8f2" : (isAutumn ? "#3d2b1c" : "#1e3d1c");
   ctx.fillStyle = groundColor; 
@@ -2118,7 +2357,7 @@ state.trees.forEach(tree => {
       ctx.save();
       
   // Bölüm 3: Kırmızı çizime uygun, sol altta ufak elips gölet
-      let isSnowPond = state.gameMode === "STORY" && state.currentLevel === 3;
+      let isSnowPond = state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4);
       if (isSnowPond) {
           state.pond.x = 40; 
           state.pond.y = state.fire.y + 120; 
@@ -2133,8 +2372,8 @@ state.trees.forEach(tree => {
       const py = state.pond.y;
       const baseR = state.pond.r; 
 
-      // Koyu Mavi Taban
-      ctx.fillStyle = "rgba(10, 30, 60, 0.9)"; 
+// Koyu Mavi Taban (Buz tuttuysa açık buz mavisi)
+      ctx.fillStyle = state.pond.isFrozen ? "rgba(180, 220, 240, 0.95)" : "rgba(10, 30, 60, 0.9)"; 
       ctx.beginPath();
       if (isSnowPond) {
           ctx.ellipse(px, py, baseR * 1.3, baseR * 0.75, 0, 0, Math.PI * 2);
@@ -2143,8 +2382,8 @@ state.trees.forEach(tree => {
       }
       ctx.fill();
 
-      // İç Açık Mavi Katman
-      ctx.fillStyle = "rgba(43, 108, 176, 0.6)"; 
+      // İç Açık Mavi Katman (Buz tuttuysa daha açık buz mavisi)
+      ctx.fillStyle = state.pond.isFrozen ? "rgba(210, 240, 255, 0.8)" : "rgba(43, 108, 176, 0.6)"; 
       ctx.beginPath();
       if (isSnowPond) {
           ctx.ellipse(px, py, baseR * 1.25, baseR * 0.7, 0, 0, Math.PI * 2);
@@ -2153,27 +2392,31 @@ state.trees.forEach(tree => {
       }
       ctx.fill();
 
-      // Su Dalgası Efektleri
       const time = performance.now() * 0.001; 
-      ctx.globalCompositeOperation = "screen";
-      for (let i = 0; i < 3; i++) {
-          const waveOffset = Math.sin(time * 1.5 + i * 2) * 5;
-          const r = baseR * 0.9 - i * 40 + waveOffset; 
-          if (r <= 0) continue;
-          
-          ctx.beginPath();
-          if (isSnowPond) {
-              ctx.ellipse(px, py, Math.max(5, r * 1.2), Math.max(3, r * 0.7), 0, 0, Math.PI * 2);
-          } else {
-              ctx.arc(px, py, r, 0, Math.PI * 2);
+      
+      // Su Dalgası Efektleri (Sadece buz çözüldüğünde görünür)
+      if (!state.pond.isFrozen) {
+          ctx.globalCompositeOperation = "screen";
+          for (let i = 0; i < 3; i++) {
+              const waveOffset = Math.sin(time * 1.5 + i * 2) * 5;
+              const r = baseR * 0.9 - i * 40 + waveOffset; 
+              if (r <= 0) continue;
+              
+              ctx.beginPath();
+              if (isSnowPond) {
+                  ctx.ellipse(px, py, Math.max(5, r * 1.2), Math.max(3, r * 0.7), 0, 0, Math.PI * 2);
+              } else {
+                  ctx.arc(px, py, r, 0, Math.PI * 2);
+              }
+              ctx.lineWidth = 1.5;
+              ctx.strokeStyle = `rgba(150, 220, 255, ${0.15 - i * 0.05})`;
+              ctx.stroke();
           }
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = `rgba(150, 220, 255, ${0.15 - i * 0.05})`;
-          ctx.stroke();
       }
       ctx.restore();
       
-      if (!state.pond.fishCaughtToday) {
+      // Balık Zıplama Animasyonu (Sadece göl donmamışsa ve balık tutulmamışsa çalışır)
+      if (!state.pond.isFrozen && !state.pond.fishCaughtToday) {
         ctx.save();
         const cx = px + baseR * 0.45; 
         const cy = py - baseR * 0.45;
@@ -2261,7 +2504,7 @@ if (isSnow) {
 }
 
 function drawRadioTower() {
-    if (state.gameMode !== "STORY" || state.currentLevel !== 3) return;
+    if (state.gameMode !== "STORY" || (state.currentLevel !== 3 && state.currentLevel !== 4)) return;
     
     // Kuleyi çadırın arkasından çıkarıp sağ tarafa, ateşe yakın konuma alıyoruz
     const tx = state.fire.x + 110;
@@ -2532,13 +2775,68 @@ function draw() {
   state.woods.forEach(wood => drawWoodItem(wood.x, wood.y, wood.angle, wood.isGolden));
   state.mushrooms.forEach(mushroom => drawMushroom(mushroom.x, mushroom.y, false));
   state.apples.forEach(apple => drawApple(apple.x, apple.y));
-  if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
-  drawRadioTower(); drawTent(); drawCampfireBase(); drawFireSprite();
+  state.iceStones.forEach(ice => drawIceStone(ice.x, ice.y));
+ if (state.blueMushroom) { drawMushroom(state.blueMushroom.x, state.blueMushroom.y, true); }
+  drawRadioTower(); 
+  
+// Helikopter Pervane Gölgesi ve Kurtarma Spot Işığı
+  if (state.helicopter && state.helicopter.active) {
+      ctx.save();
+      const hx = state.tent.x;
+      const hy = state.tent.y - 120; // Çadırın arka kısmındaki boşluk
+      
+      let shadowAlpha = Math.max(0, Math.min(0.6, 0.6 + (state.helicopter.yOffset / 800)));
+      ctx.globalCompositeOperation = "source-over";
+      ctx.translate(hx, hy);
+      
+      // Helikopter Gövdesi ve Kuyruğu
+      ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+      ctx.beginPath(); ctx.ellipse(0, 0, 18, 45, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-3, 35, 6, 45); // Kuyruk uzantısı
+      ctx.beginPath(); ctx.ellipse(0, 80, 12, 3, 0, 0, Math.PI * 2); ctx.fill(); // Kuyruk pervanesi
+
+      // Ana Pervane (Hızlı döndüğü için bulanık bir daire gibi görünür)
+      ctx.rotate(state.helicopter.propellerAngle);
+      let propGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 95);
+      propGrad.addColorStop(0, `rgba(0, 0, 0, ${shadowAlpha * 0.7})`);
+      propGrad.addColorStop(0.8, `rgba(0, 0, 0, ${shadowAlpha * 0.2})`);
+      propGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = propGrad;
+      ctx.beginPath(); ctx.arc(0, 0, 95, 0, Math.PI * 2); ctx.fill();
+      
+      // Dönüş hissi veren ince siyah pervane bıçakları
+      ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha * 0.8})`;
+      ctx.fillRect(-95, -2, 190, 4);
+      ctx.fillRect(-2, -95, 4, 190);
+      
+      ctx.rotate(-state.helicopter.propellerAngle);
+      ctx.translate(-hx, -hy);
+
+      // Kurtarma Spot Işığı (Hafifçe etrafı tarayarak sallanır)
+      let searchX = hx + Math.sin(performance.now() * 0.0015) * 35;
+      let searchY = hy + Math.cos(performance.now() * 0.001) * 20;
+      ctx.globalCompositeOperation = "screen";
+      let grad = ctx.createRadialGradient(searchX, searchY, 10, searchX, searchY, state.helicopter.spotlightSize * 1.5);
+      grad.addColorStop(0, "rgba(255, 255, 230, 0.7)");
+      grad.addColorStop(1, "rgba(255, 255, 230, 0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(searchX, searchY, state.helicopter.spotlightSize * 1.8, state.helicopter.spotlightSize * 0.9, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      ctx.restore();
+  }
+
+  drawTent(); drawCampfireBase(); drawFireSprite();
   drawSparks(); drawSmoke();
-  const darkFactor = nightBlend();
+ const darkFactor = nightBlend();
+  
   if (darkFactor > 0) { 
       ctx.save();
-      if (state.currentDay % 4 === 0) {
+      let isChapter4 = state.gameMode === "STORY" && state.currentLevel === 4;
+      
+      // Sadece geceleri kararır. 4. Bölümdeysen veya 4. gündüysen Kanlı Ay (v1.js stili) olur.
+      if (state.currentDay % 4 === 0 || isChapter4) {
           ctx.fillStyle = `rgba(40, 0, 0, ${0.4 + darkFactor * 0.5})`;
       } else {
           ctx.fillStyle = `rgba(8, 16, 34, ${0.2 + darkFactor * 0.65})`;
@@ -2547,7 +2845,8 @@ function draw() {
       drawFireLight(); 
       ctx.restore(); 
       drawEnemies(); 
-  } else { drawFireLight();
+  } else { 
+      drawFireLight();
   }
 
   if (currentFireShieldTier >= 3 && (state.windDuration > 0 || state.rainDuration > 0)) {
@@ -2645,12 +2944,27 @@ if (state.equippedFood === "cooked_meat") icon = "🍖";
 function resetState() {
     state.gameOver = false; state.deathAnimDone = false;
     state.score = 0;
-    state.health = 100; state.dayNightTimer = 0; state.currentDay = 1; state.damageFlash = 0;
+    state.health = 100; state.coldLevel = 100; 
+    
+   state.dayNightTimer = 0; 
+    state.currentDay = 1;
+    
+    state.damageFlash = 0; state.sessionGoldenWood = 0;
+    
     state.sessionGoldenWood = 0;
     
-    state.carried = { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 };
-    state.tentStorage = { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0 };
+    // Çanta ve Depoya Buz Taşı (ice_stone) ile Kazma (ice_pick) Eklendi
+    state.carried = { wood: 0, apple: 0, mushroom: 0, fish: 0, blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0, ice_stone: 0, ice_pick: 0 };
+    state.tentStorage = { wood: 0, apple: 0, mushroom: 0, fish: 0, cooked_mushroom: 0, cooked_fish: 0, blue_fish: 0, cooked_blue_fish: 0, trap_kit: 0, meat: 0, cooked_meat: 0, ice_stone: 0 };
     
+    // Gölün buz durumu ve buz taşları başlangıç ayarları (3. Bölümdeysen donuk başlar)
+    state.pond.isFrozen = (state.gameMode === "STORY" && (state.currentLevel === 3 || state.currentLevel === 4));
+    state.pond.fishCaughtToday = false;
+    state.iceStones = []; 
+    state.pendingIceStoneRespawns = 0; 
+    state.iceStoneRespawnTimer = 0; 
+    state.targetIceStoneCount = 3;
+
 state.traps = [];
     updateMaxCarryCapacity();
     updatePetStats();
@@ -2733,9 +3047,10 @@ state.traps = [];
         state.dogRescued = true; 
     }
     
-    controls.up = false;
+controls.up = false;
     controls.down = false; controls.left = false; controls.right = false;
-    generateEnvironment();
+    state.trees = []; // Haritayı sıfırla
+    resizeCanvas(); // Göl konumunu ve çevreyi güncel bölüme göre (Bölüm 3/4) yeniden oluştur
     seedWoods(); updateHud();
 }
 
@@ -2854,7 +3169,7 @@ function setupMainMenu() {
     
     let savedStoryLevel = parseInt(localStorage.getItem("campfireCurrentStoryLevel")) || 1;
     
-    const btnStory = document.createElement("button");
+  const btnStory = document.createElement("button");
     btnStory.className = "menu-btn primary";
     btnStory.innerHTML = savedStoryLevel > 1 ? t("btnStoryCont") : t("btnStory");
     btnStory.onclick = () => {
@@ -2871,6 +3186,10 @@ function setupMainMenu() {
             });
         } else if (state.currentLevel === 3) {
             playIntro(t("intro3Title"), t("intro3Text"), () => {
+                initAudio(); state.status = "PLAYING"; 
+            });
+        } else if (state.currentLevel === 4) {
+            playIntro(t("intro4Title"), t("intro4Text"), () => {
                 initAudio(); state.status = "PLAYING"; 
             });
         } else {
